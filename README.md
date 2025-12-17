@@ -2,7 +2,7 @@
 
 > Um motor de orquestração multi-thread leve, eficiente e seguro para Python.
 
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen) ![Python](https://img.shields.io/badge/python-3.9%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+[![CI](https://github.com/dionipadilha/dataloom/actions/workflows/ci.yml/badge.svg)](https://github.com/dionipadilha/dataloom/actions/workflows/ci.yml) ![Python](https://img.shields.io/badge/python-3.9%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 O **DataLoom** é uma biblioteca projetada para processar fluxos de dados utilizando o padrão **Produtor-Consumidor** com múltiplas threads (Weavers). Ele abstrai a complexidade de filas (`Queues`), sincronização (`Locks`) e gerenciamento de ciclo de vida, permitindo que você foque apenas na lógica de transformação dos dados.
 
