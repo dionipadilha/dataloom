@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dataloom"
+version = "0.1.0"
+description = "DataLoom: Um orquestrador de threads leve e eficiente para dados."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+  {name = "Dioni Padilha", email = "dionipdl@gmail.com"}
+]
+keywords = ["pipeline", "data", "threading", "loom", "concurrency"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+]
+
+dependencies = [
+    "numpy>=1.21.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0"  # Para medir cobertura de código
+]
+
+[project.urls]
+"Homepage" = "https://github.com/dionipadilha/dataloom"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dataloom*"]
