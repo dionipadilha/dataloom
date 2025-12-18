@@ -4,7 +4,15 @@
 
 [![CI](https://github.com/dionipadilha/dataloom/actions/workflows/ci.yml/badge.svg)](https://github.com/dionipadilha/dataloom/actions/workflows/ci.yml) ![Python](https://img.shields.io/badge/python-3.9%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
+<img width="2752" height="1536" alt="DataLoom: Um motor de orquestração multi-thread leve, eficiente e seguro para Python." src="https://github.com/user-attachments/assets/c1f3fc98-5eaf-4add-a38c-2717ae699cd5" />
+
 O **DataLoom** é uma biblioteca projetada para processar fluxos de dados utilizando o padrão **Produtor-Consumidor** com múltiplas threads (Weavers). Ele abstrai a complexidade de filas (`Queues`), sincronização (`Locks`) e gerenciamento de ciclo de vida, permitindo que você foque apenas na lógica de transformação dos dados.
+
+## Por que usar o DataLoom?
+⚡ Performance: Processamento paralelo real para tarefas I/O bound.
+🧩 Simplicidade: API intuitiva inspirada na metáfora de tecelagem.
+🛡️ Segurança: Thread-safety garantido por design em todo o pipeline.
+📦 Leve: Dependências mínimas, pronto para rodar em qualquer ambiente Python.
 
 ## ✨ Características
 
