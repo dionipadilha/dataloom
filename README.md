@@ -18,7 +18,7 @@ O **DataLoom** é uma biblioteca projetada para processar fluxos de dados utiliz
 Como este projeto está em desenvolvimento local, instale-o em modo editável:
 
 ```bash
-git clone https://github.com/SEU-USUARIO/dataloom.git
+git clone https://github.com/dionipadilha/dataloom.git
 cd dataloom
 pip install -e .
 ```
