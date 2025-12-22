@@ -35,7 +35,6 @@ pip install -e .
 
 Aqui está um exemplo completo de como tecer um pipeline de dados:
 
-```python
 from pathlib import Path
 import numpy as np
 from dataloom import (
@@ -43,8 +42,10 @@ from dataloom import (
     LoomConfig,
     LoomLogs,
     Processor,
-    JsonFileSink
+    JsonFileSink,
+    ThreadedBufferedSink
 )
+from dataloom.sources import RandomNumPySource
 
 # 1. Defina sua lógica de processamento (Stateless)
 class MyFilterProcessor(Processor):
@@ -69,11 +70,21 @@ if __name__ == "__main__":
         interval_seconds=1   # Gera um novo lote a cada 1 segundo
     )
 
-    # 3. Inicializa o Loom (O Orquestrador)
+    # 3. Fonte de Dados
+    # Agora desvinculada do motor, permitindo fontes customizadas (DB, CSV, S3)
+    source = RandomNumPySource(config)
+
+    # 4. Sink Arquivado e Otimizado
+    # ThreadedBufferedSink evita que o I/O bloqueie o processamento
+    file_sink = JsonFileSink(config.output_dir)
+    sink = ThreadedBufferedSink(file_sink)
+
+    # 5. Inicializa o Loom (O Orquestrador)
     loom = Loom(
         config=config,
         processor=MyFilterProcessor(),
-        sink=JsonFileSink(config.output_dir), # Salva em ./data_out/results.json
+        sink=sink,
+        source=source,
         num_weavers=4  # 4 Threads trabalhando em paralelo
     )
 

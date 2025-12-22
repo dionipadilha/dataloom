@@ -9,7 +9,7 @@ das threads (Weavers) e a distribuição de tarefas.
 import threading
 import queue
 import time
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import numpy as np
 
 from dataloom.types import LoomState
@@ -18,6 +18,9 @@ from dataloom.processors import Processor
 from dataloom.sinks import Sink
 from dataloom.weaver import Weaver
 from dataloom.hooks import LoomHooks
+
+if TYPE_CHECKING:
+    from dataloom.sources import Source
 
 
 class Loom:
@@ -35,12 +38,21 @@ class Loom:
         config: LoomConfig,
         processor: Processor,
         sink: Sink,
+        source: Optional["Source"] = None,
         hooks: Optional[LoomHooks] = None,
         num_weavers: int = 2,
     ):
         self.config = config
         self.processor = processor
         self.sink = sink
+        
+        # Default dependency injection if not provided
+        if source is None:
+            # Avoid circular import at top-level if possible, or just import at top
+            from dataloom.sources import RandomNumPySource
+            self.source = RandomNumPySource(config)
+        else:
+            self.source = source
 
         # Garante nova instância de hooks se não fornecida (evita estado global)
         self.hooks = hooks or LoomHooks()
@@ -71,11 +83,16 @@ class Loom:
             self.weavers.append(weaver)
 
         try:
-            while not self.stop_event.is_set():
-                # Geração de dados (Simulação)
-                batch = np.random.rand(self.config.batch_size)
+            # Consome do Source
+            for batch in self.source:
+                if self.stop_event.is_set():
+                    break
                 self.task_queue.put(batch)
-                time.sleep(self.config.interval_seconds)
+            
+            # O processamento normal acabou. Aguarda esvaziar a fila.
+            # Isso garante que stop() não trave esperando join() enquanto weavers já pararam.
+            self.task_queue.join()
+            
         except Exception as e:
             self.state = LoomState.FAILED
             self.hooks.on_error(e)
@@ -92,4 +109,10 @@ class Loom:
         # Aguarda que a fila seja totalmente consumida
         self.task_queue.join()
         self.state = LoomState.COMPLETED
+        try:
+            self.sink.close()
+        except Exception as e:
+            # Não queremos que erro no close esconda outros erros, mas logamos
+            self.hooks.on_error(e)
+            
         self.hooks.on_stop()
