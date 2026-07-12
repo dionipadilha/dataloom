@@ -57,7 +57,16 @@ class Loom:
         self.num_weavers = num_weavers
 
         self.state = LoomState.PENDING
-        self.task_queue: queue.Queue = queue.Queue()
+
+        # Fila limitada (backpressure): se os Weavers não acompanharem o
+        # ritmo do Source, o produtor aguarda em vez de acumular memória.
+        # queue_maxsize=0 na config desliga o limite.
+        if config.queue_maxsize is not None:
+            maxsize = config.queue_maxsize
+        else:
+            maxsize = num_weavers * 4
+        self.task_queue: queue.Queue = queue.Queue(maxsize=maxsize)
+
         self.stop_event = threading.Event()
         self.weavers: list[Weaver] = []
         self._stop_lock = threading.Lock()

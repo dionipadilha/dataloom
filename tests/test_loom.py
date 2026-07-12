@@ -186,3 +186,37 @@ def test_loom_weaver_error_reported_via_hooks():
     assert loom.state is LoomState.COMPLETED
     assert len(hooks.errors) == 3
     assert all(isinstance(e, WeaverError) for e in hooks.errors)
+
+
+def test_loom_bounded_queue_processes_everything():
+    """
+    Com fila pequena (backpressure), um source maior que a fila deve
+    ser processado por inteiro, sem perda nem deadlock.
+    """
+    config = LoomConfig(
+        output_dir=".",
+        batch_size=1,
+        interval_seconds=0,
+        queue_maxsize=2,  # bem menor que o volume do source
+    )
+    sink = InMemorySink()
+    loom = Loom(
+        config=config,
+        processor=PassthroughProcessor(),
+        sink=sink,
+        source=FiniteSource(list(range(50))),
+        num_weavers=2,
+    )
+
+    runner = threading.Thread(target=loom.start, daemon=True)
+    runner.start()
+    runner.join(timeout=10)
+
+    assert not runner.is_alive(), "Loom travou com fila limitada"
+    assert loom.task_queue.maxsize == 2
+    assert sorted(r["data"] for r in sink.results) == list(range(50))
+
+
+def test_loom_default_queue_size_scales_with_weavers():
+    loom = _make_loom(FiniteSource([1]))
+    assert loom.task_queue.maxsize == loom.num_weavers * 4

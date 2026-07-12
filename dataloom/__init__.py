@@ -9,7 +9,7 @@ de uso limpa e segura para o consumidor.
 """
 
 from dataloom.config import LoomConfig
-from dataloom.exceptions import LoomError, WeaverError
+from dataloom.exceptions import ConfigurationError, LoomError, WeaverError
 from dataloom.hooks import LoomHooks
 from dataloom.logs import LoomLogs
 from dataloom.loom import Loom
@@ -31,4 +31,5 @@ __all__ = [
     "LoomLogs",
     "LoomError",
     "WeaverError",
+    "ConfigurationError",
 ]
