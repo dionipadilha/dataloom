@@ -1,16 +1,16 @@
 # dataloom_engine/types.py
 
 """
-Define os tipos fundamentais e estados do sistema DataLoom.
-Estas definições são usadas transversalmente por vários módulos para
-garantir consistência de estado.
+Defines the fundamental types and states of the DataLoom system.
+These definitions are used across several modules to keep state
+handling consistent.
 """
 
 from enum import Enum
 
 
 class LoomState(Enum):
-    """Representa o estado atual do ciclo de vida da máquina Loom."""
+    """Represents the current lifecycle state of the Loom machine."""
 
     PENDING = "pending"
     RUNNING = "running"

@@ -1,11 +1,11 @@
 # dataloom_engine/__init__.py
 
 """
-DataLoom: Um motor de orquestração multi-thread leve e eficiente.
+DataLoom: a lightweight and efficient multi-threaded orchestration engine.
 
-Este módulo expõe a API pública do pacote. Observe que classes internas
-como 'Weaver' não são expostas propositalmente, mantendo a superfície
-de uso limpa e segura para o consumidor.
+This module exposes the package's public API. Note that internal classes
+such as 'Weaver' are deliberately not exposed, keeping the usage surface
+clean and safe for consumers.
 """
 
 from dataloom_engine.config import LoomConfig

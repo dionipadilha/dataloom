@@ -1,9 +1,9 @@
 # dataloom_engine/loom.py
 
 """
-O módulo Loom é o coração do motor de orquestração.
-Define a classe principal responsável por gerenciar o ciclo de vida
-das threads (Weavers) e a distribuição de tarefas.
+The Loom module is the heart of the orchestration engine.
+Defines the main class responsible for managing the lifecycle of the
+worker threads (Weavers) and the distribution of tasks.
 """
 
 import queue
@@ -23,15 +23,15 @@ if TYPE_CHECKING:
 
 class Loom:
     """
-    Orquestrador principal do DataLoom.
+    DataLoom's main orchestrator.
 
-    Exemplo de uso:
+    Usage example:
         config = LoomConfig(...)
         loom = Loom(config, processor, sink)
         loom.start()
 
-    Também pode ser usado como context manager, garantindo stop()
-    mesmo se o bloco levantar exceção ou for interrompido:
+    It can also be used as a context manager, guaranteeing stop()
+    even if the block raises or is interrupted:
         with Loom(config, processor, sink) as loom:
             loom.start()
     """
@@ -51,21 +51,21 @@ class Loom:
 
         # Default dependency injection if not provided
         if source is None:
-            # Import tardio para evitar dependência circular no import do módulo
+            # Late import to avoid a circular dependency at module import time
             from dataloom_engine.sources import RandomNumPySource
 
             source = RandomNumPySource(config)
         self.source: "Source" = source
 
-        # Garante nova instância de hooks se não fornecida (evita estado global)
+        # Fresh hooks instance when not provided (avoids global state)
         self.hooks = hooks or LoomHooks()
         self.num_weavers = num_weavers
 
         self.state = LoomState.PENDING
 
-        # Fila limitada (backpressure): se os Weavers não acompanharem o
-        # ritmo do Source, o produtor aguarda em vez de acumular memória.
-        # queue_maxsize=0 na config desliga o limite.
+        # Bounded queue (backpressure): if the Weavers can't keep up with
+        # the Source, the producer waits instead of growing memory.
+        # queue_maxsize=0 in the config disables the limit.
         if config.queue_maxsize is not None:
             maxsize = config.queue_maxsize
         else:
@@ -81,20 +81,20 @@ class Loom:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
-        # Garante limpeza completa ao sair do bloco with, inclusive em
-        # exceções (como KeyboardInterrupt) que escapem do start().
-        # stop() é idempotente, então não há custo se já foi chamado.
+        # Guarantees full cleanup when leaving the with block, including on
+        # exceptions (such as KeyboardInterrupt) that escape start().
+        # stop() is idempotent, so this is free if it already ran.
         self.stop()
 
     def start(self) -> None:
         """
-        Inicializa os Weavers e começa o loop de geração de tarefas.
-        Este método bloqueia a execução até que ocorra erro ou parada.
+        Starts the Weavers and begins the task production loop.
+        This method blocks until an error occurs or the loom is stopped.
         """
         self.state = LoomState.RUNNING
         self.hooks.on_start()
 
-        # Acorda os tecelões
+        # Wake up the weavers
         for _ in range(self.num_weavers):
             weaver = Weaver(
                 self.task_queue,
@@ -107,7 +107,7 @@ class Loom:
             self.weavers.append(weaver)
 
         try:
-            # Consome do Source
+            # Consume from the Source
             for batch in self.source:
                 if self.stop_event.is_set():
                     break
@@ -121,8 +121,8 @@ class Loom:
 
     def _enqueue(self, batch) -> None:
         """
-        Coloca um lote na fila sem bloquear indefinidamente: o timeout
-        permite reagir a um stop() disparado por outra thread.
+        Puts a batch on the queue without blocking indefinitely: the
+        timeout lets us react to a stop() triggered from another thread.
         """
         while not self.stop_event.is_set():
             try:
@@ -133,11 +133,11 @@ class Loom:
 
     def stop(self) -> None:
         """
-        Sinaliza a parada de todos os componentes e aguarda limpeza.
-        Seguro para ser chamado múltiplas vezes ou dentro de blocos finally.
+        Signals every component to stop and waits for cleanup.
+        Safe to call multiple times or from finally blocks.
 
-        Os itens já enfileirados são processados antes do encerramento:
-        cada Weaver consome a fila até encontrar seu sentinela de parada.
+        Items already queued are processed before shutdown: each Weaver
+        drains the queue until it finds its stop sentinel.
         """
         with self._stop_lock:
             if self._stopped:
@@ -146,22 +146,22 @@ class Loom:
 
         self.stop_event.set()
 
-        # Um sentinela por Weaver: cada thread drena a fila e encerra
-        # ao consumir o seu. Isso substitui o join() na fila, que podia
-        # travar para sempre se um Weaver morresse antes de esvaziá-la.
+        # One sentinel per Weaver: each thread drains the queue and exits
+        # upon consuming its own. This replaces the queue join(), which
+        # could block forever if a Weaver died before emptying it.
         for _ in self.weavers:
             self.task_queue.put(STOP_SENTINEL)
         for weaver in self.weavers:
             weaver.join()
 
-        # Não sobrescreve FAILED definido pelo start() em caso de erro
+        # Never overwrite a FAILED state set by start() on error
         if self.state is LoomState.RUNNING:
             self.state = LoomState.COMPLETED
 
         try:
             self.sink.close()
         except Exception as e:
-            # Não queremos que erro no close esconda outros erros, mas logamos
+            # An error in close() must not mask other errors, but we report it
             self.hooks.on_error(e)
 
         self.hooks.on_stop()
