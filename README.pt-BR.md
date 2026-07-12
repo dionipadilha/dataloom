@@ -14,7 +14,7 @@ O **DataLoom** é uma biblioteca projetada para processar fluxos de dados utiliz
 ⚡ Performance: Processamento paralelo real para tarefas I/O bound.
 🧩 Simplicidade: API intuitiva inspirada na metáfora de tecelagem.
 🛡️ Segurança: Thread-safety garantido por design em todo o pipeline.
-📦 Leve: Dependências mínimas, pronto para rodar em qualquer ambiente Python.
+📦 Leve: Core com zero dependências, pronto para rodar em qualquer ambiente Python.
 
 ### Por que não usar só `ThreadPoolExecutor`?
 
@@ -51,6 +51,14 @@ CPU bound, prefira multiprocessing.
 
 ```bash
 pip install dataloom-engine
+```
+
+O core do motor tem **zero dependências**. Os exemplos `RandomNumPySource` e
+`StatisticsProcessor` (usados no Uso Rápido abaixo) precisam do NumPy, que
+é distribuído como extra opcional:
+
+```bash
+pip install "dataloom-engine[numpy]"
 ```
 
 > ⚠️ **Atenção ao nome:** o pacote instala o módulo `dataloom_engine`

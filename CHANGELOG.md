@@ -1,79 +1,100 @@
 # Changelog
 
-Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
+All notable changes to this project are documented in this file.
 
-O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
-e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and the project adheres to [Semantic Versioning](https://semver.org/).
+
+## [0.4.0] - 2026-07-12
+
+### Changed
+
+- **BREAKING:** numpy is no longer a required dependency. The engine core
+  has zero third-party requirements; only the demo implementations
+  (`RandomNumPySource`, `StatisticsProcessor`) need NumPy, which now ships
+  as an optional extra — install with `pip install "dataloom-engine[numpy]"`.
+  Those classes fail fast at construction with an actionable ImportError
+  when numpy is missing.
+- `Processor.process` is now typed as accepting `Any` batch: the engine
+  imposes no data type — sources may yield lists, dicts, arrays or any
+  other object.
+- All code documentation (docstrings, comments) and runtime error
+  messages are now in English, matching the primary README and making the
+  codebase consistent for international contributors. The Portuguese
+  README remains available as `README.pt-BR.md`.
 
 ## [0.3.0] - 2026-07-12
 
-### Alterado
+### Changed
 
-- **BREAKING:** o pacote passa a ser distribuído como **`dataloom-engine`**
-  e o módulo Python foi renomeado de `dataloom` para **`dataloom_engine`**
-  (`pip install dataloom-engine`; `import dataloom_engine`). Motivo: o nome
-  `dataloom` no PyPI pertence a um ORM de outro autor; manter o módulo
-  `dataloom` causaria colisão de arquivos para quem instalasse os dois
-  pacotes e induziria instalações erradas (`pip install dataloom` instala
-  o ORM, não este projeto). A API pública é idêntica — basta trocar o
-  prefixo dos imports.
-- Workflow de publicação no PyPI via Trusted Publishing (OIDC), disparado
-  na publicação de releases no GitHub.
+- **BREAKING:** the package is now distributed as **`dataloom-engine`**
+  and the Python module was renamed from `dataloom` to **`dataloom_engine`**
+  (`pip install dataloom-engine`; `import dataloom_engine`). Reason: the
+  `dataloom` name on PyPI belongs to an ORM by another author; keeping the
+  `dataloom` module would collide file-for-file for anyone installing both
+  packages, and would induce wrong installs (`pip install dataloom`
+  installs the ORM, not this project). The public API is identical — just
+  swap the import prefix.
+- PyPI publishing workflow via Trusted Publishing (OIDC), triggered by
+  publishing a GitHub release.
 
 ## [0.2.0] - 2026-07-12
 
-### Corrigido
+### Fixed
 
-- Weavers não morrem mais silenciosamente quando o `Processor` ou o `Sink`
-  lançam exceção: o erro é convertido em `WeaverError`, logado e reportado
-  via `hooks.on_error`, e a thread continua processando os lotes seguintes.
-- O encerramento (`Loom.stop()`) não usa mais `task_queue.join()`, que podia
-  travar para sempre se um Weaver encerrasse com itens ainda na fila (por
-  exemplo, em um `KeyboardInterrupt`). Cada Weaver agora drena a fila até
-  consumir seu sentinela de parada.
-- `stop()` é idempotente e não sobrescreve mais o estado `FAILED` com
-  `COMPLETED` após um erro no source.
-- `ThreadedBufferedSink` não perde mais itens quando `close()` é chamado
-  imediatamente após `send()` (corrida entre sinalização e drenagem do
-  buffer). Falha no sink alvo não derruba mais a thread de escrita.
+- Weavers no longer die silently when the `Processor` or the `Sink`
+  raises: the error is wrapped in `WeaverError`, logged and reported
+  through `hooks.on_error`, and the thread keeps processing subsequent
+  batches.
+- Shutdown (`Loom.stop()`) no longer uses `task_queue.join()`, which
+  could block forever if a Weaver exited with items still queued (e.g.
+  on a `KeyboardInterrupt`). Each Weaver now drains the queue until it
+  consumes its stop sentinel.
+- `stop()` is idempotent and no longer overwrites the `FAILED` state
+  with `COMPLETED` after a source error.
+- `ThreadedBufferedSink` no longer loses items when `close()` is called
+  right after `send()` (race between signaling and draining the buffer).
+  A target sink failure no longer kills the writer thread.
 
-### Adicionado
+### Added
 
-- `Loom` funciona como context manager: `with Loom(...) as loom:` garante
-  `stop()` e limpeza de recursos mesmo em exceções ou `Ctrl+C`.
-- Backpressure: a fila de tarefas é limitada por padrão
-  (`num_weavers * 4`), configurável via `LoomConfig.queue_maxsize`
-  (`0` = ilimitada).
-- Validação de parâmetros no `LoomConfig` (`__post_init__`), lançando
-  `ConfigurationError`; `output_dir` aceita `str` e é convertido para
-  `Path`; `interval_seconds` aceita valores fracionários.
-- Métricas por lote: `LoomHooks.on_batch_processed(result, duration_seconds)`,
-  invocado após cada lote entregue com sucesso ao Sink.
-- Novos sinks: `CsvFileSink` (escrita CSV thread-safe) e `CallbackSink`
-  (delega resultados a um callable do usuário, com `on_close` opcional).
-- `send()` após `close()` no `ThreadedBufferedSink` lança `LoomError` em
-  vez de descartar dados em silêncio.
-- `WeaverError` e `ConfigurationError` exportados na API pública.
-- Marcador `py.typed`: consumidores com mypy/pyright enxergam as anotações
-  de tipo da biblioteca.
+- `Loom` works as a context manager: `with Loom(...) as loom:` guarantees
+  `stop()` and resource cleanup even on exceptions or `Ctrl+C`.
+- Backpressure: the task queue is bounded by default
+  (`num_weavers * 4`), configurable via `LoomConfig.queue_maxsize`
+  (`0` = unbounded).
+- Parameter validation in `LoomConfig` (`__post_init__`), raising
+  `ConfigurationError`; `output_dir` accepts `str` and is converted to
+  `Path`; `interval_seconds` accepts fractional values.
+- Per-batch metrics: `LoomHooks.on_batch_processed(result, duration_seconds)`,
+  invoked after each batch is successfully delivered to the Sink.
+- New sinks: `CsvFileSink` (thread-safe CSV writing) and `CallbackSink`
+  (delegates results to a user callable, with optional `on_close`).
+- `send()` after `close()` on `ThreadedBufferedSink` raises `LoomError`
+  instead of silently dropping data.
+- `WeaverError` and `ConfigurationError` exported in the public API.
+- `py.typed` marker: consumers using mypy/pyright can see the library's
+  type annotations.
 
-### Alterado
+### Changed
 
-- A assinatura interna de `Weaver` mudou (recebe callbacks `on_error` e
-  `on_batch_processed` em vez de `stop_event`). O módulo é interno e não
-  faz parte da API pública.
-- CI atualizado: `actions/checkout@v4`, `setup-python@v5`, instalação via
-  extras `[dev]`, cobertura com `pytest --cov` e Python 3.13 na matriz.
+- The internal `Weaver` signature changed (takes `on_error` and
+  `on_batch_processed` callbacks instead of a `stop_event`). The module
+  is internal and not part of the public API.
+- CI updated: `actions/checkout@v4`, `setup-python@v5`, install via the
+  `[dev]` extras, coverage with `pytest --cov` and Python 3.13 in the
+  matrix.
 
 ## [0.1.0] - 2026-07-05
 
-### Adicionado
+### Added
 
-- Versão inicial: orquestração produtor-consumidor com múltiplas threads
-  (`Loom`, `Weaver`), contratos de `Processor`, `Sink` e `Source`,
-  `JsonFileSink`, `ThreadedBufferedSink`, hooks de ciclo de vida
-  (`LoomHooks`), logging (`LoomLogs`) e exceções tipadas (`LoomError`).
+- Initial version: producer-consumer orchestration with multiple threads
+  (`Loom`, `Weaver`), `Processor`, `Sink` and `Source` contracts,
+  `JsonFileSink`, `ThreadedBufferedSink`, lifecycle hooks (`LoomHooks`),
+  logging (`LoomLogs`) and typed exceptions (`LoomError`).
 
+[0.4.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.4.0
 [0.3.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.3.0
 [0.2.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.2.0
 [0.1.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.1.0

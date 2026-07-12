@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dataloom-engine"
-version = "0.3.0"
+version = "0.4.0"
 description = "DataLoom: Um orquestrador de threads leve e eficiente para dados."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -27,16 +27,20 @@ classifiers = [
     "Typing :: Typed",
 ]
 
-dependencies = [
-    "numpy>=1.21.0"
-]
+# The engine core has zero third-party dependencies. numpy is only
+# needed by the demo Source/Processor and ships as an optional extra.
+dependencies = []
 
 [project.optional-dependencies]
+numpy = [
+    "numpy>=1.21.0",
+]
 dev = [
     "pytest>=7.0",
-    "pytest-cov>=4.0",  # Para medir cobertura de código
+    "pytest-cov>=4.0",
     "ruff>=0.4",
     "mypy>=1.8",
+    "numpy>=1.21.0",  # used by the test suite and demo implementations
 ]
 
 [project.urls]
