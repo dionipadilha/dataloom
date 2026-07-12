@@ -20,6 +20,7 @@ O **DataLoom** é uma biblioteca projetada para processar fluxos de dados utiliz
 - **Concorrente:** Gerencia automaticamente múltiplos _Weavers_ (threads) em paralelo.
 - **Seguro:** Sinks padrão são thread-safe e exceções são tipadas (`LoomError`).
 - **Resiliente:** Erros de processamento não derrubam os Weavers e são reportados via hooks.
+- **Gerenciável:** `Loom` é um context manager — `with Loom(...) as loom:` garante `stop()` automático.
 - **Backpressure:** Fila de tarefas limitada por padrão (`queue_maxsize`), evitando crescimento de memória sem controle.
 - **Observável:** Hooks para monitoramento e Logs integrados.
 
@@ -91,12 +92,14 @@ if __name__ == "__main__":
         num_weavers=4  # 4 Threads trabalhando em paralelo
     )
 
+    print("🧵 DataLoom iniciado! Pressione Ctrl+C para parar.")
     try:
-        print("🧵 DataLoom iniciado! Pressione Ctrl+C para parar.")
-        loom.start()
+        # O context manager garante stop() e limpeza dos recursos,
+        # mesmo em caso de exceção ou Ctrl+C
+        with loom:
+            loom.start()
     except KeyboardInterrupt:
-        print("\n🛑 Parando o tear...")
-        loom.stop()  # Idempotente: seguro mesmo que o Loom já tenha parado
+        print("\n🛑 Tear parado.")
 ```
 
 ## 🏗️ Arquitetura

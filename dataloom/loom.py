@@ -29,6 +29,11 @@ class Loom:
         config = LoomConfig(...)
         loom = Loom(config, processor, sink)
         loom.start()
+
+    Também pode ser usado como context manager, garantindo stop()
+    mesmo se o bloco levantar exceção ou for interrompido:
+        with Loom(config, processor, sink) as loom:
+            loom.start()
     """
 
     def __init__(
@@ -71,6 +76,15 @@ class Loom:
         self.weavers: list[Weaver] = []
         self._stop_lock = threading.Lock()
         self._stopped = False
+
+    def __enter__(self) -> "Loom":
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        # Garante limpeza completa ao sair do bloco with, inclusive em
+        # exceções (como KeyboardInterrupt) que escapem do start().
+        # stop() é idempotente, então não há custo se já foi chamado.
+        self.stop()
 
     def start(self) -> None:
         """

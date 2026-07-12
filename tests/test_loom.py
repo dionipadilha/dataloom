@@ -220,3 +220,43 @@ def test_loom_bounded_queue_processes_everything():
 def test_loom_default_queue_size_scales_with_weavers():
     loom = _make_loom(FiniteSource([1]))
     assert loom.task_queue.maxsize == loom.num_weavers * 4
+
+
+def test_loom_as_context_manager():
+    """O bloco with entrega o próprio Loom e garante stop() na saída."""
+    hooks = RecordingHooks()
+    sink = InMemorySink()
+
+    with _make_loom(FiniteSource([1, 2, 3]), hooks=hooks, sink=sink) as loom:
+        assert isinstance(loom, Loom)
+        loom.start()
+
+    assert loom.state is LoomState.COMPLETED
+    assert hooks.stopped
+    assert len(sink.results) == 3
+
+
+def test_loom_context_manager_stops_on_exception():
+    """Exceção dentro do bloco with não pode vazar sem limpeza: stop() roda mesmo assim."""
+    hooks = RecordingHooks()
+    loom = _make_loom(FiniteSource([1]), hooks=hooks)
+
+    with pytest.raises(RuntimeError, match="user code failed"):
+        with loom:
+            # Weavers ainda nem iniciaram: o __exit__ deve encerrar sem travar
+            raise RuntimeError("user code failed")
+
+    assert hooks.stopped
+    # start() nunca rodou, então o estado não deve fingir conclusão
+    assert loom.state is LoomState.PENDING
+
+
+def test_loom_context_manager_after_start_is_noop():
+    """stop() do __exit__ após um start() completo não trava nem repete hooks."""
+    hooks = RecordingHooks()
+
+    with _make_loom(FiniteSource([1, 2]), hooks=hooks) as loom:
+        loom.start()  # start() já chama stop() internamente no finally
+
+    assert loom.state is LoomState.COMPLETED
+    assert hooks.stopped
