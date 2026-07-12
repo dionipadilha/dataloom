@@ -1,4 +1,4 @@
-# dataloom/sources.py
+# dataloom_engine/sources.py
 
 """
 Data Sources Module.
@@ -11,7 +11,7 @@ from typing import Any, Iterator
 
 import numpy as np
 
-from dataloom.config import LoomConfig
+from dataloom_engine.config import LoomConfig
 
 
 class Source(ABC):

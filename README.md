@@ -47,7 +47,15 @@ CPU bound, prefira multiprocessing.
 
 ## 📦 Instalação
 
-Como este projeto está em desenvolvimento local, instale-o em modo editável:
+```bash
+pip install dataloom-engine
+```
+
+> ⚠️ **Atenção ao nome:** o pacote instala o módulo `dataloom_engine`
+> (`import dataloom_engine`). Não confunda com o pacote `dataloom` do PyPI,
+> que é um ORM de outro autor e não tem relação com este projeto.
+
+Para desenvolver ou usar a versão mais recente do repositório:
 
 ```bash
 git clone https://github.com/dionipadilha/dataloom.git
@@ -62,7 +70,7 @@ Aqui está um exemplo completo de como tecer um pipeline de dados:
 ```python
 from pathlib import Path
 import numpy as np
-from dataloom import (
+from dataloom_engine import (
     Loom,
     LoomConfig,
     LoomLogs,
@@ -70,7 +78,7 @@ from dataloom import (
     JsonFileSink,
     ThreadedBufferedSink
 )
-from dataloom.sources import RandomNumPySource
+from dataloom_engine.sources import RandomNumPySource
 
 # 1. Defina sua lógica de processamento (Stateless)
 class MyFilterProcessor(Processor):

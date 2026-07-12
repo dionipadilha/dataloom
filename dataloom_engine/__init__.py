@@ -1,4 +1,4 @@
-# dataloom/__init__.py
+# dataloom_engine/__init__.py
 
 """
 DataLoom: Um motor de orquestração multi-thread leve e eficiente.
@@ -8,21 +8,21 @@ como 'Weaver' não são expostas propositalmente, mantendo a superfície
 de uso limpa e segura para o consumidor.
 """
 
-from dataloom.config import LoomConfig
-from dataloom.exceptions import ConfigurationError, LoomError, WeaverError
-from dataloom.hooks import LoomHooks
-from dataloom.logs import LoomLogs
-from dataloom.loom import Loom
-from dataloom.processors import Processor
-from dataloom.sinks import (
+from dataloom_engine.config import LoomConfig
+from dataloom_engine.exceptions import ConfigurationError, LoomError, WeaverError
+from dataloom_engine.hooks import LoomHooks
+from dataloom_engine.logs import LoomLogs
+from dataloom_engine.loom import Loom
+from dataloom_engine.processors import Processor
+from dataloom_engine.sinks import (
     CallbackSink,
     CsvFileSink,
     JsonFileSink,
     Sink,
     ThreadedBufferedSink,
 )
-from dataloom.sources import Source
-from dataloom.types import LoomState
+from dataloom_engine.sources import Source
+from dataloom_engine.types import LoomState
 
 __all__ = [
     "Loom",

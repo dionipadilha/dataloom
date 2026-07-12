@@ -5,8 +5,8 @@ import threading
 
 import pytest
 
-from dataloom.exceptions import LoomError
-from dataloom.sinks import CallbackSink, CsvFileSink, Sink, ThreadedBufferedSink
+from dataloom_engine.exceptions import LoomError
+from dataloom_engine.sinks import CallbackSink, CsvFileSink, Sink, ThreadedBufferedSink
 
 
 class MockSink(Sink):

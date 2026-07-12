@@ -5,6 +5,21 @@ Todas as mudanças notáveis deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.3.0] - 2026-07-12
+
+### Alterado
+
+- **BREAKING:** o pacote passa a ser distribuído como **`dataloom-engine`**
+  e o módulo Python foi renomeado de `dataloom` para **`dataloom_engine`**
+  (`pip install dataloom-engine`; `import dataloom_engine`). Motivo: o nome
+  `dataloom` no PyPI pertence a um ORM de outro autor; manter o módulo
+  `dataloom` causaria colisão de arquivos para quem instalasse os dois
+  pacotes e induziria instalações erradas (`pip install dataloom` instala
+  o ORM, não este projeto). A API pública é idêntica — basta trocar o
+  prefixo dos imports.
+- Workflow de publicação no PyPI via Trusted Publishing (OIDC), disparado
+  na publicação de releases no GitHub.
+
 ## [0.2.0] - 2026-07-12
 
 ### Corrigido
@@ -59,5 +74,6 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   `JsonFileSink`, `ThreadedBufferedSink`, hooks de ciclo de vida
   (`LoomHooks`), logging (`LoomLogs`) e exceções tipadas (`LoomError`).
 
+[0.3.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.3.0
 [0.2.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.2.0
 [0.1.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.1.0

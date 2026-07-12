@@ -1,4 +1,4 @@
-# dataloom/loom.py
+# dataloom_engine/loom.py
 
 """
 O módulo Loom é o coração do motor de orquestração.
@@ -10,15 +10,15 @@ import queue
 import threading
 from typing import TYPE_CHECKING, Optional
 
-from dataloom.config import LoomConfig
-from dataloom.hooks import LoomHooks
-from dataloom.processors import Processor
-from dataloom.sinks import Sink
-from dataloom.types import LoomState
-from dataloom.weaver import STOP_SENTINEL, Weaver
+from dataloom_engine.config import LoomConfig
+from dataloom_engine.hooks import LoomHooks
+from dataloom_engine.processors import Processor
+from dataloom_engine.sinks import Sink
+from dataloom_engine.types import LoomState
+from dataloom_engine.weaver import STOP_SENTINEL, Weaver
 
 if TYPE_CHECKING:
-    from dataloom.sources import Source
+    from dataloom_engine.sources import Source
 
 
 class Loom:
@@ -52,7 +52,7 @@ class Loom:
         # Default dependency injection if not provided
         if source is None:
             # Import tardio para evitar dependência circular no import do módulo
-            from dataloom.sources import RandomNumPySource
+            from dataloom_engine.sources import RandomNumPySource
 
             source = RandomNumPySource(config)
         self.source: "Source" = source

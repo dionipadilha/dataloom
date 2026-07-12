@@ -1,4 +1,4 @@
-# dataloom/types.py
+# dataloom_engine/types.py
 
 """
 Define os tipos fundamentais e estados do sistema DataLoom.

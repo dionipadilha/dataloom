@@ -1,4 +1,4 @@
-# dataloom/weaver.py
+# dataloom_engine/weaver.py
 
 """
 Definição do Trabalhador (Weaver).
@@ -12,9 +12,9 @@ import threading
 import time
 from typing import Any, Callable, Dict, Optional
 
-from dataloom.exceptions import WeaverError
-from dataloom.processors import Processor
-from dataloom.sinks import Sink
+from dataloom_engine.exceptions import WeaverError
+from dataloom_engine.processors import Processor
+from dataloom_engine.sinks import Sink
 
 logger = logging.getLogger(__name__)
 

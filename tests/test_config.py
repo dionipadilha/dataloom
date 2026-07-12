@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from dataloom import ConfigurationError, LoomConfig
+from dataloom_engine import ConfigurationError, LoomConfig
 
 
 def test_config_defaults_are_valid():
