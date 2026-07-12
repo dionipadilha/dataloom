@@ -6,7 +6,8 @@ Define como os lotes (batches) são transformados antes de serem enviados ao Sin
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any, Dict
+
 import numpy as np
 
 

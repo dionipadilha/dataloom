@@ -8,14 +8,14 @@ das threads (Weavers) e a distribuição de tarefas.
 
 import queue
 import threading
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from dataloom.types import LoomState
 from dataloom.config import LoomConfig
+from dataloom.hooks import LoomHooks
 from dataloom.processors import Processor
 from dataloom.sinks import Sink
-from dataloom.weaver import Weaver, STOP_SENTINEL
-from dataloom.hooks import LoomHooks
+from dataloom.types import LoomState
+from dataloom.weaver import STOP_SENTINEL, Weaver
 
 if TYPE_CHECKING:
     from dataloom.sources import Source
@@ -51,11 +51,11 @@ class Loom:
 
         # Default dependency injection if not provided
         if source is None:
-            # Avoid circular import at top-level if possible, or just import at top
+            # Import tardio para evitar dependência circular no import do módulo
             from dataloom.sources import RandomNumPySource
-            self.source = RandomNumPySource(config)
-        else:
-            self.source = source
+
+            source = RandomNumPySource(config)
+        self.source: "Source" = source
 
         # Garante nova instância de hooks se não fornecida (evita estado global)
         self.hooks = hooks or LoomHooks()

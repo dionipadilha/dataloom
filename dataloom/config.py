@@ -5,8 +5,8 @@ Gerenciamento de configuração do orquestrador.
 Centraliza parâmetros operacionais como diretórios e tamanhos de lote.
 """
 
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional, Union
 
 from dataloom.exceptions import ConfigurationError

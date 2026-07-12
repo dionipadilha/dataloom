@@ -7,19 +7,16 @@
 
 import json
 import queue
-import tempfile
 import threading
-from pathlib import Path
 
 import numpy as np
-import pytest
 
-from dataloom import JsonFileSink, LoomConfig, Processor, Sink
+from dataloom import JsonFileSink, Processor, Sink
 
 # Importando classes internas explicitamente para teste
 from dataloom.exceptions import WeaverError
 from dataloom.processors import StatisticsProcessor
-from dataloom.weaver import Weaver, STOP_SENTINEL
+from dataloom.weaver import STOP_SENTINEL, Weaver
 
 # --- Mocks e Helpers ---
 

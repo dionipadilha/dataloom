@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dataloom"
-version = "0.1.0"
+version = "0.2.0"
 description = "DataLoom: Um orquestrador de threads leve e eficiente para dados."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -14,8 +14,17 @@ authors = [
 ]
 keywords = ["pipeline", "data", "threading", "loom", "concurrency"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 
 dependencies = [
@@ -25,12 +34,47 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
-    "pytest-cov>=4.0"  # Para medir cobertura de código
+    "pytest-cov>=4.0",  # Para medir cobertura de código
+    "ruff>=0.4",
+    "mypy>=1.8",
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/dionipadilha/dataloom"
+"Changelog" = "https://github.com/dionipadilha/dataloom/blob/main/CHANGELOG.md"
+"Issues" = "https://github.com/dionipadilha/dataloom/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["dataloom*"]
+
+[tool.setuptools.package-data]
+dataloom = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+]
+
+# Sem python_version fixo: versões novas do mypy não aceitam mais alvo 3.9,
+# e os stubs do numpy exigem alvo >= 3.12. A compatibilidade com 3.9 é
+# garantida pela matriz de testes do CI, que executa nessa versão.
+[tool.mypy]
+files = ["dataloom"]
+check_untyped_defs = true
+warn_redundant_casts = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+# numpy é usado apenas nas implementações de demonstração; ignorar stubs
+# ausentes mantém o check estável em ambientes sem os type stubs resolvidos
+module = "numpy.*"
+ignore_missing_imports = true
