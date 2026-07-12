@@ -5,14 +5,14 @@ Contratos de saída de dados (Sinks).
 Define como e onde os resultados processados são depositados.
 """
 
-from abc import ABC, abstractmethod
-from typing import Callable, Dict, Any, Optional
-from pathlib import Path
 import csv
 import json
 import logging
-import threading
 import queue
+import threading
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional
 
 from dataloom.exceptions import LoomError
 
@@ -30,7 +30,7 @@ class Sink(ABC):
         """
         pass
 
-    def close(self) -> None:
+    def close(self) -> None:  # noqa: B027 -- no-op deliberado: close é opcional
         """
         Método de ciclo de vida chamado quando o Loom encerra.
         Útil para fechar conexões, flushear buffers ou parar threads de background.
@@ -78,13 +78,13 @@ class CsvFileSink(Sink):
 
     def send(self, result: Dict[str, Any]) -> None:
         with self._lock:
-            write_header = self._fieldnames is None
-            if write_header:
-                self._fieldnames = list(result.keys())
+            fieldnames = self._fieldnames
+            write_header = fieldnames is None
+            if fieldnames is None:
+                fieldnames = list(result.keys())
+                self._fieldnames = fieldnames
             with open(self._path, "a", newline="") as f:
-                writer = csv.DictWriter(
-                    f, fieldnames=self._fieldnames, extrasaction="ignore"
-                )
+                writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
                 if write_header:
                     writer.writeheader()
                 writer.writerow(result)

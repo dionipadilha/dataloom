@@ -5,10 +5,12 @@ Data Sources Module.
 Defines the interface for generating or fetching data batches to be processed by the Loom.
 """
 
-from abc import ABC, abstractmethod
-from typing import Iterator, Any
 import time
+from abc import ABC, abstractmethod
+from typing import Any, Iterator
+
 import numpy as np
+
 from dataloom.config import LoomConfig
 
 
@@ -46,9 +48,9 @@ class RandomNumPySource(Source):
         while self.limit == -1 or count < self.limit:
             # Simulate generic production delay
             time.sleep(self.config.interval_seconds)
-            
+
             # Generate batch
             batch = np.random.rand(self.config.batch_size)
             yield batch
-            
+
             count += 1

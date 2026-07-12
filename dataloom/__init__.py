@@ -21,8 +21,8 @@ from dataloom.sinks import (
     Sink,
     ThreadedBufferedSink,
 )
-from dataloom.types import LoomState
 from dataloom.sources import Source
+from dataloom.types import LoomState
 
 __all__ = [
     "Loom",

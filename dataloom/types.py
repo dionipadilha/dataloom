@@ -11,6 +11,7 @@ from enum import Enum
 
 class LoomState(Enum):
     """Representa o estado atual do ciclo de vida da máquina Loom."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"

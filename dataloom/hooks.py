@@ -5,14 +5,15 @@ Pontos de extensão para observabilidade (Hooks).
 Permite injetar lógica de monitoramento sem acoplar ao core do engine.
 """
 
-from abc import ABC
 from typing import Any, Dict
 
 
-class LoomHooks(ABC):
+class LoomHooks:
     """
     Classe base para hooks do ciclo de vida.
-    Métodos são opcionais (não abstratos) para facilitar a implementação parcial.
+    Todos os métodos são opcionais e no-op por padrão: sobrescreva apenas
+    os pontos de interesse. (Deliberadamente não é um ABC — não há método
+    obrigatório a implementar.)
     """
 
     def on_start(self) -> None:

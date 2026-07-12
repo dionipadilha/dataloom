@@ -68,6 +68,11 @@ select = [
 python_version = "3.9"
 files = ["dataloom"]
 check_untyped_defs = true
-warn_unused_ignores = true
 warn_redundant_casts = true
 no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+# numpy é usado apenas nas implementações de demonstração; ignorar stubs
+# ausentes mantém o check estável em ambientes sem os type stubs resolvidos
+module = "numpy.*"
+ignore_missing_imports = true
