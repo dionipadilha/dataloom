@@ -11,12 +11,12 @@ import threading
 
 import numpy as np
 
-from dataloom import JsonFileSink, Processor, Sink
+from dataloom_engine import JsonFileSink, Processor, Sink
 
 # Importando classes internas explicitamente para teste
-from dataloom.exceptions import WeaverError
-from dataloom.processors import StatisticsProcessor
-from dataloom.weaver import STOP_SENTINEL, Weaver
+from dataloom_engine.exceptions import WeaverError
+from dataloom_engine.processors import StatisticsProcessor
+from dataloom_engine.weaver import STOP_SENTINEL, Weaver
 
 # --- Mocks e Helpers ---
 

@@ -1,4 +1,4 @@
-# dataloom/exceptions.py
+# dataloom_engine/exceptions.py
 
 """
 Exceções personalizadas para o DataLoom.

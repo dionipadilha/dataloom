@@ -1,4 +1,4 @@
-# dataloom/logs.py
+# dataloom_engine/logs.py
 
 """
 Utilitários de configuração de logging para o DataLoom.

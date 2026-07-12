@@ -1,4 +1,4 @@
-# dataloom/hooks.py
+# dataloom_engine/hooks.py
 
 """
 Pontos de extensão para observabilidade (Hooks).

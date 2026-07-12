@@ -1,4 +1,4 @@
-# dataloom/processors.py
+# dataloom_engine/processors.py
 
 """
 Contratos de processamento de dados.

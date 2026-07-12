@@ -1,4 +1,4 @@
-# dataloom/sinks.py
+# dataloom_engine/sinks.py
 
 """
 Contratos de saída de dados (Sinks).
@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
-from dataloom.exceptions import LoomError
+from dataloom_engine.exceptions import LoomError
 
 logger = logging.getLogger(__name__)
 

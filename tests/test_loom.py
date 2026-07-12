@@ -6,9 +6,9 @@ from typing import Any, Iterator
 import numpy as np
 import pytest
 
-from dataloom import Loom, LoomConfig, LoomHooks, LoomState, Processor, Sink
-from dataloom.exceptions import WeaverError
-from dataloom.sources import Source
+from dataloom_engine import Loom, LoomConfig, LoomHooks, LoomState, Processor, Sink
+from dataloom_engine.exceptions import WeaverError
+from dataloom_engine.sources import Source
 
 # --- Mocks ---
 

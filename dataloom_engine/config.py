@@ -1,4 +1,4 @@
-# dataloom/config.py
+# dataloom_engine/config.py
 
 """
 Gerenciamento de configuração do orquestrador.
@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
 
-from dataloom.exceptions import ConfigurationError
+from dataloom_engine.exceptions import ConfigurationError
 
 
 @dataclass

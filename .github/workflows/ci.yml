@@ -52,4 +52,4 @@ jobs:
 
       - name: Run tests with pytest
         run: |
-          pytest --cov=dataloom
+          pytest --cov=dataloom_engine
