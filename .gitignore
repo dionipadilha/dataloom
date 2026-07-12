@@ -39,3 +39,6 @@ MANIFEST
 .pytest_cache/
 .coverage
 htmlcov/
+# Example output artifacts
+file_pipeline_output/
+sensor_output/

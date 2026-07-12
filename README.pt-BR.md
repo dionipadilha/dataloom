@@ -141,6 +141,10 @@ if __name__ == "__main__":
         print("\n🛑 Tear parado.")
 ```
 
+Mais exemplos executáveis de casos reais — enriquecimento via API com speedup
+paralelo, pipeline de arquivos resiliente, stream de sensores com buffer —
+estão no diretório [`examples/`](examples/).
+
 ## 🏗️ Arquitetura
 
 O DataLoom utiliza uma metáfora de tecelagem:

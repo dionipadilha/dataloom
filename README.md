@@ -141,6 +141,10 @@ if __name__ == "__main__":
         print("\n🛑 Loom stopped.")
 ```
 
+More runnable, real-world examples — API enrichment with parallel speedup,
+a resilient file-processing pipeline, a buffered sensor stream — live in the
+[`examples/`](examples/) directory.
+
 ## 🏗️ Architecture
 
 DataLoom is built around a weaving metaphor:
