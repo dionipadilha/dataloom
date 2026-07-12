@@ -19,6 +19,8 @@ O **DataLoom** é uma biblioteca projetada para processar fluxos de dados utiliz
 - **API Coesa:** Conceitos alinhados (`Loom`, `Weaver`, `Sink`).
 - **Concorrente:** Gerencia automaticamente múltiplos _Weavers_ (threads) em paralelo.
 - **Seguro:** Sinks padrão são thread-safe e exceções são tipadas (`LoomError`).
+- **Resiliente:** Erros de processamento não derrubam os Weavers e são reportados via hooks.
+- **Backpressure:** Fila de tarefas limitada por padrão (`queue_maxsize`), evitando crescimento de memória sem controle.
 - **Observável:** Hooks para monitoramento e Logs integrados.
 
 ## 📦 Instalação
@@ -35,6 +37,7 @@ pip install -e .
 
 Aqui está um exemplo completo de como tecer um pipeline de dados:
 
+```python
 from pathlib import Path
 import numpy as np
 from dataloom import (
@@ -93,7 +96,7 @@ if __name__ == "__main__":
         loom.start()
     except KeyboardInterrupt:
         print("\n🛑 Parando o tear...")
-        loom.stop()
+        loom.stop()  # Idempotente: seguro mesmo que o Loom já tenha parado
 ```
 
 ## 🏗️ Arquitetura
