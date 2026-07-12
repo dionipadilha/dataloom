@@ -9,7 +9,8 @@ Este módulo é interno e não deve ser importado diretamente pelo usuário.
 import logging
 import queue
 import threading
-from typing import Any, Callable, Optional
+import time
+from typing import Any, Callable, Dict, Optional
 
 from dataloom.exceptions import WeaverError
 from dataloom.processors import Processor
@@ -38,12 +39,14 @@ class Weaver(threading.Thread):
         processor: Processor,
         sink: Sink,
         on_error: Optional[Callable[[Exception], None]] = None,
+        on_batch_processed: Optional[Callable[[Dict[str, Any], float], None]] = None,
     ):
         super().__init__(daemon=True)
         self.task_queue = task_queue
         self.processor = processor
         self.sink = sink
         self.on_error = on_error
+        self.on_batch_processed = on_batch_processed
 
     def run(self) -> None:
         while True:
@@ -58,8 +61,10 @@ class Weaver(threading.Thread):
 
     def _process_batch(self, batch: Any) -> None:
         try:
+            started = time.monotonic()
             result = self.processor.process(batch)
             self.sink.send(result)
+            duration = time.monotonic() - started
         except Exception as exc:
             logger.exception("Weaver falhou ao processar um lote; o lote foi descartado.")
             if self.on_error is not None:
@@ -69,3 +74,11 @@ class Weaver(threading.Thread):
                     self.on_error(error)
                 except Exception:
                     logger.exception("Callback on_error lançou uma exceção.")
+            return
+
+        # Métrica só é emitida em sucesso; falhas passam pelo on_error
+        if self.on_batch_processed is not None:
+            try:
+                self.on_batch_processed(result, duration)
+            except Exception:
+                logger.exception("Callback on_batch_processed lançou uma exceção.")

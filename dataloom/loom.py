@@ -101,6 +101,7 @@ class Loom:
                 self.processor,
                 self.sink,
                 on_error=self.hooks.on_error,
+                on_batch_processed=self.hooks.on_batch_processed,
             )
             weaver.start()
             self.weavers.append(weaver)

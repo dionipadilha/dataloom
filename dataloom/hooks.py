@@ -6,6 +6,7 @@ Permite injetar lógica de monitoramento sem acoplar ao core do engine.
 """
 
 from abc import ABC
+from typing import Any, Dict
 
 
 class LoomHooks(ABC):
@@ -29,5 +30,20 @@ class LoomHooks(ABC):
 
         Atenção: pode ser invocado a partir de múltiplas threads Weaver
         simultaneamente — implementações devem ser thread-safe.
+        """
+        pass
+
+    def on_batch_processed(self, result: Dict[str, Any], duration_seconds: float) -> None:
+        """
+        Chamado após cada lote processado e entregue ao Sink com sucesso.
+
+        Args:
+            result: O dicionário produzido pelo Processor para o lote.
+            duration_seconds: Tempo gasto em process() + send(), medido
+                com relógio monotônico.
+
+        Atenção: assim como on_error, é invocado a partir das threads
+        Weaver — implementações devem ser thread-safe e rápidas, pois
+        rodam no caminho quente do pipeline.
         """
         pass

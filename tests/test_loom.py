@@ -83,6 +83,7 @@ class RecordingHooks(LoomHooks):
         self.started = False
         self.stopped = False
         self.errors = []
+        self.batches = []
 
     def on_start(self):
         self.started = True
@@ -93,6 +94,10 @@ class RecordingHooks(LoomHooks):
     def on_error(self, error):
         with self._lock:
             self.errors.append(error)
+
+    def on_batch_processed(self, result, duration_seconds):
+        with self._lock:
+            self.batches.append((result, duration_seconds))
 
 
 class ExplodingSource(Source):
@@ -220,6 +225,58 @@ def test_loom_bounded_queue_processes_everything():
 def test_loom_default_queue_size_scales_with_weavers():
     loom = _make_loom(FiniteSource([1]))
     assert loom.task_queue.maxsize == loom.num_weavers * 4
+
+
+def test_loom_reports_batch_metrics_via_hooks():
+    """Cada lote processado com sucesso dispara on_batch_processed com resultado e duração."""
+    hooks = RecordingHooks()
+    loom = _make_loom(FiniteSource([10, 20, 30]), hooks=hooks)
+    loom.start()
+
+    assert len(hooks.batches) == 3
+    values = sorted(result["data"] for result, _ in hooks.batches)
+    assert values == [10, 20, 30]
+    assert all(duration >= 0 for _, duration in hooks.batches)
+
+
+def test_loom_no_batch_metrics_on_failure():
+    """Lote que falha não emite métrica de sucesso — só on_error."""
+
+    class BrokenProcessor(Processor):
+        def process(self, batch):
+            raise ValueError("Boom!")
+
+    hooks = RecordingHooks()
+    config = LoomConfig(output_dir=".", batch_size=1, interval_seconds=0)
+    loom = Loom(
+        config=config,
+        processor=BrokenProcessor(),
+        sink=InMemorySink(),
+        source=FiniteSource([1, 2]),
+        hooks=hooks,
+        num_weavers=2,
+    )
+    loom.start()
+
+    assert hooks.batches == []
+    assert len(hooks.errors) == 2
+
+
+def test_loom_survives_broken_metrics_hook():
+    """Exceção dentro do on_batch_processed não pode derrubar o Weaver."""
+
+    class BrokenMetricsHooks(RecordingHooks):
+        def on_batch_processed(self, result, duration_seconds):
+            raise RuntimeError("metrics backend offline")
+
+    hooks = BrokenMetricsHooks()
+    sink = InMemorySink()
+    loom = _make_loom(FiniteSource([1, 2, 3]), hooks=hooks, sink=sink)
+    loom.start()
+
+    # Todos os itens foram processados apesar do hook quebrado
+    assert len(sink.results) == 3
+    assert loom.state is LoomState.COMPLETED
 
 
 def test_loom_as_context_manager():
