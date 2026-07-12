@@ -64,8 +64,10 @@ select = [
     "B",  # flake8-bugbear
 ]
 
+# Sem python_version fixo: versões novas do mypy não aceitam mais alvo 3.9,
+# e os stubs do numpy exigem alvo >= 3.12. A compatibilidade com 3.9 é
+# garantida pela matriz de testes do CI, que executa nessa versão.
 [tool.mypy]
-python_version = "3.9"
 files = ["dataloom"]
 check_untyped_defs = true
 warn_redundant_casts = true
