@@ -24,6 +24,10 @@ class LoomHooks(ABC):
 
     def on_error(self, error: Exception) -> None:
         """
-        Chamado quando ocorre uma exceção não tratada no loop principal do Loom.
+        Chamado quando ocorre uma exceção no loop principal do Loom ou
+        durante o processamento de um lote em um Weaver (WeaverError).
+
+        Atenção: pode ser invocado a partir de múltiplas threads Weaver
+        simultaneamente — implementações devem ser thread-safe.
         """
         pass

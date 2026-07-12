@@ -6,17 +6,15 @@ Define a classe principal responsável por gerenciar o ciclo de vida
 das threads (Weavers) e a distribuição de tarefas.
 """
 
-import threading
 import queue
-import time
+import threading
 from typing import Optional, TYPE_CHECKING
-import numpy as np
 
 from dataloom.types import LoomState
 from dataloom.config import LoomConfig
 from dataloom.processors import Processor
 from dataloom.sinks import Sink
-from dataloom.weaver import Weaver
+from dataloom.weaver import Weaver, STOP_SENTINEL
 from dataloom.hooks import LoomHooks
 
 if TYPE_CHECKING:
@@ -45,7 +43,7 @@ class Loom:
         self.config = config
         self.processor = processor
         self.sink = sink
-        
+
         # Default dependency injection if not provided
         if source is None:
             # Avoid circular import at top-level if possible, or just import at top
@@ -59,9 +57,20 @@ class Loom:
         self.num_weavers = num_weavers
 
         self.state = LoomState.PENDING
-        self.task_queue: queue.Queue = queue.Queue()
+
+        # Fila limitada (backpressure): se os Weavers não acompanharem o
+        # ritmo do Source, o produtor aguarda em vez de acumular memória.
+        # queue_maxsize=0 na config desliga o limite.
+        if config.queue_maxsize is not None:
+            maxsize = config.queue_maxsize
+        else:
+            maxsize = num_weavers * 4
+        self.task_queue: queue.Queue = queue.Queue(maxsize=maxsize)
+
         self.stop_event = threading.Event()
         self.weavers: list[Weaver] = []
+        self._stop_lock = threading.Lock()
+        self._stopped = False
 
     def start(self) -> None:
         """
@@ -77,7 +86,7 @@ class Loom:
                 self.task_queue,
                 self.processor,
                 self.sink,
-                self.stop_event,
+                on_error=self.hooks.on_error,
             )
             weaver.start()
             self.weavers.append(weaver)
@@ -87,12 +96,7 @@ class Loom:
             for batch in self.source:
                 if self.stop_event.is_set():
                     break
-                self.task_queue.put(batch)
-            
-            # O processamento normal acabou. Aguarda esvaziar a fila.
-            # Isso garante que stop() não trave esperando join() enquanto weavers já pararam.
-            self.task_queue.join()
-            
+                self._enqueue(batch)
         except Exception as e:
             self.state = LoomState.FAILED
             self.hooks.on_error(e)
@@ -100,19 +104,49 @@ class Loom:
         finally:
             self.stop()
 
+    def _enqueue(self, batch) -> None:
+        """
+        Coloca um lote na fila sem bloquear indefinidamente: o timeout
+        permite reagir a um stop() disparado por outra thread.
+        """
+        while not self.stop_event.is_set():
+            try:
+                self.task_queue.put(batch, timeout=0.1)
+                return
+            except queue.Full:
+                continue
+
     def stop(self) -> None:
         """
         Sinaliza a parada de todos os componentes e aguarda limpeza.
         Seguro para ser chamado múltiplas vezes ou dentro de blocos finally.
+
+        Os itens já enfileirados são processados antes do encerramento:
+        cada Weaver consome a fila até encontrar seu sentinela de parada.
         """
+        with self._stop_lock:
+            if self._stopped:
+                return
+            self._stopped = True
+
         self.stop_event.set()
-        # Aguarda que a fila seja totalmente consumida
-        self.task_queue.join()
-        self.state = LoomState.COMPLETED
+
+        # Um sentinela por Weaver: cada thread drena a fila e encerra
+        # ao consumir o seu. Isso substitui o join() na fila, que podia
+        # travar para sempre se um Weaver morresse antes de esvaziá-la.
+        for _ in self.weavers:
+            self.task_queue.put(STOP_SENTINEL)
+        for weaver in self.weavers:
+            weaver.join()
+
+        # Não sobrescreve FAILED definido pelo start() em caso de erro
+        if self.state is LoomState.RUNNING:
+            self.state = LoomState.COMPLETED
+
         try:
             self.sink.close()
         except Exception as e:
             # Não queremos que erro no close esconda outros erros, mas logamos
             self.hooks.on_error(e)
-            
+
         self.hooks.on_stop()

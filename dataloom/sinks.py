@@ -9,8 +9,13 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any
 from pathlib import Path
 import json
+import logging
 import threading
 import queue
+
+from dataloom.exceptions import LoomError
+
+logger = logging.getLogger(__name__)
 
 
 class Sink(ABC):
@@ -57,31 +62,53 @@ class ThreadedBufferedSink(Sink):
     """
     Decorator que adiciona um buffer em memória e escrita assíncrona
     para qualquer Sink existente.
+
+    O worker consome a fila até encontrar o sentinela de parada, o que
+    garante que todos os itens enviados antes do close() sejam entregues
+    ao sink alvo, sem janelas de corrida entre sinalização e drenagem.
     """
+
+    # Sentinela interno que instrui o worker a encerrar após drenar a fila
+    _STOP: Any = object()
 
     def __init__(self, target_sink: Sink, buffer_size: int = 1000):
         self.target = target_sink
         self.queue: queue.Queue = queue.Queue(maxsize=buffer_size)
-        self.stop_event = threading.Event()
+        self._closed = False
+        self._close_lock = threading.Lock()
         self.worker_thread = threading.Thread(target=self._worker, daemon=True)
         self.worker_thread.start()
 
     def send(self, result: Dict[str, Any]) -> None:
+        if self._closed:
+            raise LoomError("ThreadedBufferedSink já foi fechado; send() não é permitido.")
         self.queue.put(result)
 
     def _worker(self) -> None:
-        while not self.stop_event.is_set() or not self.queue.empty():
+        while True:
+            item = self.queue.get()
             try:
-                item = self.queue.get(timeout=0.1)
+                if item is self._STOP:
+                    return
                 self.target.send(item)
+            except Exception:
+                # O worker precisa sobreviver a falhas do sink alvo,
+                # senão a fila para de drenar e o close() trava.
+                logger.exception("Sink alvo falhou ao receber item; item descartado.")
+            finally:
                 self.queue.task_done()
-            except queue.Empty:
-                continue
 
     def close(self) -> None:
-        # Sinaliza parada
-        self.stop_event.set()
-        # Aguarda thread terminar (ela vai esvaziar a fila antes)
+        # Idempotente: apenas a primeira chamada executa o fechamento
+        with self._close_lock:
+            if self._closed:
+                return
+            self._closed = True
+
+        # O sentinela entra atrás dos itens pendentes: o worker drena
+        # tudo antes de encerrar
+        self.queue.put(self._STOP)
         self.worker_thread.join()
+
         # Propaga o fechamento
         self.target.close()
