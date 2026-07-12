@@ -22,7 +22,7 @@ O **DataLoom** é uma biblioteca projetada para processar fluxos de dados utiliz
 - **Resiliente:** Erros de processamento não derrubam os Weavers e são reportados via hooks.
 - **Gerenciável:** `Loom` é um context manager — `with Loom(...) as loom:` garante `stop()` automático.
 - **Backpressure:** Fila de tarefas limitada por padrão (`queue_maxsize`), evitando crescimento de memória sem controle.
-- **Observável:** Hooks para monitoramento e Logs integrados.
+- **Observável:** Hooks de ciclo de vida e métricas por lote (`on_batch_processed` com resultado e duração), além de Logs integrados.
 
 ## 📦 Instalação
 
@@ -109,7 +109,7 @@ O DataLoom utiliza uma metáfora de tecelagem:
 - **Loom (Tear):** A máquina principal. Gerencia a fila de tarefas e o ciclo de vida.
 - **Weaver (Tecelão):** As threads trabalhadoras. Elas pegam a matéria-prima (batch), processam e entregam.
 - **Processor:** A lógica de negócio. Transforma dados brutos em informação.
-- **Sink:** O destino final. Onde o produto acabado é depositado (ex: Arquivo JSON, Banco de Dados).
+- **Sink:** O destino final. Onde o produto acabado é depositado (ex: `JsonFileSink`, `CsvFileSink`, ou qualquer destino via `CallbackSink`).
 
 ## 🛠️ Desenvolvimento e Testes
 
