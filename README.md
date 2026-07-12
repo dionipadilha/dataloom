@@ -14,6 +14,27 @@ O **DataLoom** é uma biblioteca projetada para processar fluxos de dados utiliz
 🛡️ Segurança: Thread-safety garantido por design em todo o pipeline.
 📦 Leve: Dependências mínimas, pronto para rodar em qualquer ambiente Python.
 
+### Por que não usar só `ThreadPoolExecutor`?
+
+Pergunta justa — a stdlib resolve o *paralelismo*, mas não o *pipeline*. O
+`concurrent.futures` te dá um pool de threads; tudo ao redor fica por sua conta:
+
+| Você precisa de...                                  | Com a stdlib             | Com o DataLoom                    |
+| --------------------------------------------------- | ------------------------ | --------------------------------- |
+| Fluxo contínuo produtor-consumidor                   | `Queue` + loops manuais  | `Loom` + `Source`                 |
+| Backpressure (produtor mais rápido que consumidores) | `Queue(maxsize=...)` manual | Padrão, configurável            |
+| Shutdown limpo (drenar fila, fechar recursos)        | Sentinelas e joins manuais | `stop()` / `with Loom(...)`     |
+| Worker que sobrevive a erros e os reporta            | try/except em cada worker | `hooks.on_error` centralizado    |
+| Métricas por item processado                         | Instrumentação manual    | `hooks.on_batch_processed`        |
+| Escrita concorrente segura em arquivo                | Lock manual              | Sinks prontos (JSON, CSV, callback) |
+
+Se o seu caso é "aplicar uma função a uma lista e coletar os resultados",
+use `ThreadPoolExecutor.map` — é a ferramenta certa. O DataLoom é para
+**fluxos contínuos ou longos** onde ciclo de vida, resiliência e
+observabilidade importam. E, como toda solução baseada em threads no
+CPython, o ganho de paralelismo vale para cargas **I/O bound**; para
+CPU bound, prefira multiprocessing.
+
 ## ✨ Características
 
 - **API Coesa:** Conceitos alinhados (`Loom`, `Weaver`, `Sink`).
@@ -129,3 +150,7 @@ Para contribuir com o projeto ou rodar os testes unitários:
 ## 📄 Licença
 
 Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+## 🗒️ Histórico de versões
+
+As mudanças de cada versão estão documentadas no [CHANGELOG](CHANGELOG.md).
