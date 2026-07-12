@@ -1,10 +1,11 @@
 # tests/test_sinks.py
 
+import csv
 import pytest
 import threading
 import time
 from dataloom.exceptions import LoomError
-from dataloom.sinks import Sink, ThreadedBufferedSink
+from dataloom.sinks import CallbackSink, CsvFileSink, Sink, ThreadedBufferedSink
 
 class MockSink(Sink):
     def __init__(self):
@@ -91,6 +92,75 @@ def test_threaded_sink_survives_target_errors():
     buffered_sink.close()
 
     assert sorted(r["id"] for r in target.results) == [0, 2]
+
+
+def test_csv_sink_writes_header_and_rows(tmp_path):
+    """O CSV recebe cabeçalho na primeira escrita e uma linha por resultado."""
+    sink = CsvFileSink(output_dir=tmp_path)
+    sink.send({"id": 1, "status": "ok"})
+    sink.send({"id": 2, "status": "fail"})
+
+    with open(tmp_path / "results.csv", newline="") as f:
+        rows = list(csv.DictReader(f))
+
+    assert rows == [
+        {"id": "1", "status": "ok"},
+        {"id": "2", "status": "fail"},
+    ]
+
+
+def test_csv_sink_handles_key_variations(tmp_path):
+    """Chaves extras são ignoradas, ausentes ficam vazias; cabeçalho vem do primeiro resultado."""
+    sink = CsvFileSink(output_dir=tmp_path)
+    sink.send({"a": 1, "b": 2})
+    sink.send({"a": 3, "b": 4, "extra": 99})  # extra ignorada
+    sink.send({"a": 5})  # b ausente fica vazia
+
+    with open(tmp_path / "results.csv", newline="") as f:
+        reader = csv.DictReader(f)
+        assert reader.fieldnames == ["a", "b"]
+        rows = list(reader)
+
+    assert rows[1] == {"a": "3", "b": "4"}
+    assert rows[2] == {"a": "5", "b": ""}
+
+
+def test_csv_sink_concurrent_writes(tmp_path):
+    """Escritas de múltiplas threads não podem corromper ou perder linhas."""
+    sink = CsvFileSink(output_dir=tmp_path)
+
+    def write_batch(offset):
+        for i in range(25):
+            sink.send({"id": offset + i})
+
+    threads = [threading.Thread(target=write_batch, args=(n * 25,)) for n in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    with open(tmp_path / "results.csv", newline="") as f:
+        ids = sorted(int(row["id"]) for row in csv.DictReader(f))
+
+    assert ids == list(range(100))
+
+
+def test_callback_sink_delegates_send_and_close():
+    received = []
+    closed = []
+
+    sink = CallbackSink(received.append, on_close=lambda: closed.append(True))
+    sink.send({"id": 1})
+    sink.send({"id": 2})
+    sink.close()
+
+    assert received == [{"id": 1}, {"id": 2}]
+    assert closed == [True]
+
+
+def test_callback_sink_close_without_handler_is_noop():
+    sink = CallbackSink(lambda result: None)
+    sink.close()  # não deve levantar
 
 
 def test_threaded_sink_no_data_loss_on_racy_close():

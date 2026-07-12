@@ -6,8 +6,9 @@ Define como e onde os resultados processados são depositados.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Callable, Dict, Any, Optional
 from pathlib import Path
+import csv
 import json
 import logging
 import threading
@@ -56,6 +57,63 @@ class JsonFileSink(Sink):
             with open(filename, "a") as f:
                 json.dump(result, f)
                 f.write("\n")
+
+
+class CsvFileSink(Sink):
+    """
+    Sink que escreve resultados em um arquivo CSV local.
+
+    O cabeçalho é definido pelas chaves do primeiro resultado recebido.
+    Nos resultados seguintes, chaves extras são ignoradas e chaves
+    ausentes ficam vazias. Utiliza threading.Lock para garantir
+    integridade na escrita concorrente.
+    """
+
+    def __init__(self, output_dir: Path, filename: str = "results.csv"):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self._path = self.output_dir / filename
+        self._lock = threading.Lock()
+        self._fieldnames: Optional[list] = None
+
+    def send(self, result: Dict[str, Any]) -> None:
+        with self._lock:
+            write_header = self._fieldnames is None
+            if write_header:
+                self._fieldnames = list(result.keys())
+            with open(self._path, "a", newline="") as f:
+                writer = csv.DictWriter(
+                    f, fieldnames=self._fieldnames, extrasaction="ignore"
+                )
+                if write_header:
+                    writer.writeheader()
+                writer.writerow(result)
+
+
+class CallbackSink(Sink):
+    """
+    Sink que delega cada resultado a um callable fornecido pelo usuário.
+    Permite integrar o pipeline a qualquer destino (fila externa, banco,
+    métrica) sem precisar criar uma subclasse de Sink.
+
+    Atenção: o callable é invocado a partir das threads Weaver — deve
+    ser thread-safe.
+    """
+
+    def __init__(
+        self,
+        callback: Callable[[Dict[str, Any]], None],
+        on_close: Optional[Callable[[], None]] = None,
+    ):
+        self.callback = callback
+        self.on_close = on_close
+
+    def send(self, result: Dict[str, Any]) -> None:
+        self.callback(result)
+
+    def close(self) -> None:
+        if self.on_close is not None:
+            self.on_close()
 
 
 class ThreadedBufferedSink(Sink):
