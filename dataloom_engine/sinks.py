@@ -1,8 +1,8 @@
 # dataloom_engine/sinks.py
 
 """
-Contratos de saída de dados (Sinks).
-Define como e onde os resultados processados são depositados.
+Data output contracts (Sinks).
+Defines how and where processed results are deposited.
 """
 
 import csv
@@ -20,34 +20,34 @@ logger = logging.getLogger(__name__)
 
 
 class Sink(ABC):
-    """Interface base para destinos de dados."""
+    """Base interface for data destinations."""
 
     @abstractmethod
     def send(self, result: Dict[str, Any]) -> None:
         """
-        Envia o resultado para o destino final.
-        Implementações devem garantir thread-safety se acessarem recursos compartilhados.
+        Sends the result to its final destination.
+        Implementations must guarantee thread-safety when touching shared resources.
         """
         pass
 
-    def close(self) -> None:  # noqa: B027 -- no-op deliberado: close é opcional
+    def close(self) -> None:  # noqa: B027 -- deliberate no-op: close is optional
         """
-        Método de ciclo de vida chamado quando o Loom encerra.
-        Útil para fechar conexões, flushear buffers ou parar threads de background.
+        Lifecycle method called when the Loom shuts down.
+        Useful for closing connections, flushing buffers or stopping background threads.
         """
         pass
 
 
 class JsonFileSink(Sink):
     """
-    Sink padrão que escreve resultados em um arquivo JSON local.
-    Utiliza threading.Lock para garantir integridade na escrita concorrente.
+    Default sink that appends results to a local JSON-lines file.
+    Uses a threading.Lock to keep concurrent writes consistent.
     """
 
     def __init__(self, output_dir: Path):
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        # Lock garante que apenas um Weaver escreva no arquivo por vez
+        # The lock ensures only one Weaver writes to the file at a time
         self._lock = threading.Lock()
 
     def send(self, result: Dict[str, Any]) -> None:
@@ -61,12 +61,12 @@ class JsonFileSink(Sink):
 
 class CsvFileSink(Sink):
     """
-    Sink que escreve resultados em um arquivo CSV local.
+    Sink that writes results to a local CSV file.
 
-    O cabeçalho é definido pelas chaves do primeiro resultado recebido.
-    Nos resultados seguintes, chaves extras são ignoradas e chaves
-    ausentes ficam vazias. Utiliza threading.Lock para garantir
-    integridade na escrita concorrente.
+    The header comes from the keys of the first result received.
+    In subsequent results, extra keys are ignored and missing keys are
+    left empty. Uses a threading.Lock to keep concurrent writes
+    consistent.
     """
 
     def __init__(self, output_dir: Path, filename: str = "results.csv"):
@@ -92,12 +92,12 @@ class CsvFileSink(Sink):
 
 class CallbackSink(Sink):
     """
-    Sink que delega cada resultado a um callable fornecido pelo usuário.
-    Permite integrar o pipeline a qualquer destino (fila externa, banco,
-    métrica) sem precisar criar uma subclasse de Sink.
+    Sink that delegates every result to a user-provided callable.
+    Lets you plug the pipeline into any destination (external queue,
+    database, metrics) without subclassing Sink.
 
-    Atenção: o callable é invocado a partir das threads Weaver — deve
-    ser thread-safe.
+    Note: the callable is invoked from the Weaver threads — it must be
+    thread-safe.
     """
 
     def __init__(
@@ -118,15 +118,15 @@ class CallbackSink(Sink):
 
 class ThreadedBufferedSink(Sink):
     """
-    Decorator que adiciona um buffer em memória e escrita assíncrona
-    para qualquer Sink existente.
+    Decorator that adds an in-memory buffer and asynchronous writing
+    to any existing Sink.
 
-    O worker consome a fila até encontrar o sentinela de parada, o que
-    garante que todos os itens enviados antes do close() sejam entregues
-    ao sink alvo, sem janelas de corrida entre sinalização e drenagem.
+    The worker consumes the buffer until it finds the stop sentinel,
+    which guarantees every item sent before close() is delivered to the
+    target sink, with no race window between signaling and draining.
     """
 
-    # Sentinela interno que instrui o worker a encerrar após drenar a fila
+    # Internal sentinel instructing the worker to exit after draining the queue
     _STOP: Any = object()
 
     def __init__(self, target_sink: Sink, buffer_size: int = 1000):
@@ -139,7 +139,7 @@ class ThreadedBufferedSink(Sink):
 
     def send(self, result: Dict[str, Any]) -> None:
         if self._closed:
-            raise LoomError("ThreadedBufferedSink já foi fechado; send() não é permitido.")
+            raise LoomError("ThreadedBufferedSink is already closed; send() is not allowed.")
         self.queue.put(result)
 
     def _worker(self) -> None:
@@ -150,23 +150,23 @@ class ThreadedBufferedSink(Sink):
                     return
                 self.target.send(item)
             except Exception:
-                # O worker precisa sobreviver a falhas do sink alvo,
-                # senão a fila para de drenar e o close() trava.
-                logger.exception("Sink alvo falhou ao receber item; item descartado.")
+                # The worker must survive target sink failures, otherwise
+                # the queue stops draining and close() hangs.
+                logger.exception("Target sink failed to receive an item; item dropped.")
             finally:
                 self.queue.task_done()
 
     def close(self) -> None:
-        # Idempotente: apenas a primeira chamada executa o fechamento
+        # Idempotent: only the first call performs the shutdown
         with self._close_lock:
             if self._closed:
                 return
             self._closed = True
 
-        # O sentinela entra atrás dos itens pendentes: o worker drena
-        # tudo antes de encerrar
+        # The sentinel goes in behind any pending items: the worker
+        # drains everything before exiting
         self.queue.put(self._STOP)
         self.worker_thread.join()
 
-        # Propaga o fechamento
+        # Propagate the close
         self.target.close()

@@ -75,7 +75,7 @@ def test_loom_uses_custom_source():
 
 
 class RecordingHooks(LoomHooks):
-    """Hooks que registram todas as chamadas para inspeção nos testes."""
+    """Hooks that record every call for inspection in tests."""
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -100,7 +100,7 @@ class RecordingHooks(LoomHooks):
 
 
 class ExplodingSource(Source):
-    """Source que falha após entregar alguns itens."""
+    """Source that fails after delivering a few items."""
 
     def __iter__(self) -> Iterator[Any]:
         yield np.array([1])
@@ -120,7 +120,7 @@ def _make_loom(source, hooks=None, sink=None):
 
 
 def test_loom_failed_state_survives_stop():
-    """Erro no source deve deixar o estado FAILED (não COMPLETED)."""
+    """An error in the source must leave the state as FAILED (not COMPLETED)."""
     hooks = RecordingHooks()
     loom = _make_loom(ExplodingSource(), hooks=hooks)
 
@@ -129,14 +129,14 @@ def test_loom_failed_state_survives_stop():
 
     assert loom.state is LoomState.FAILED
     assert any(isinstance(e, RuntimeError) for e in hooks.errors)
-    assert hooks.stopped  # stop() ainda executa a limpeza completa
+    assert hooks.stopped  # stop() still performs the full cleanup
 
 
 def test_loom_stop_is_idempotent():
-    """stop() pode ser chamado múltiplas vezes sem travar ou re-executar hooks."""
+    """stop() can be called multiple times without hanging or re-running hooks."""
     hooks = RecordingHooks()
     loom = _make_loom(FiniteSource([1, 2]), hooks=hooks)
-    loom.start()  # finally interno já chama stop()
+    loom.start()  # the internal finally already calls stop()
 
     loom.stop()
     loom.stop()
@@ -147,13 +147,13 @@ def test_loom_stop_is_idempotent():
 
 def test_loom_stop_drains_pending_items():
     """
-    stop() com itens ainda na fila deve processá-los e encerrar,
-    sem deadlock (regressão do task_queue.join() no stop antigo).
+    stop() with items still queued must process them and shut down,
+    without deadlocking (regression for the old task_queue.join() stop).
     """
     sink = InMemorySink()
     loom = _make_loom(FiniteSource([1, 2, 3, 4, 5]), sink=sink)
 
-    # Enfileira itens diretamente, antes do start(), simulando fila com backlog
+    # Enqueue items directly, before start(), simulating a queue with backlog
     for pending_value in [10, 20, 30]:
         loom.task_queue.put(np.array([pending_value]))
 
@@ -161,14 +161,14 @@ def test_loom_stop_drains_pending_items():
     runner.start()
     runner.join(timeout=5)
 
-    assert not runner.is_alive(), "Loom.start() não terminou: possível deadlock"
+    assert not runner.is_alive(), "Loom.start() did not finish: possible deadlock"
     assert loom.state is LoomState.COMPLETED
-    # Itens pré-enfileirados + itens do source foram todos processados
+    # Pre-queued items + source items were all processed
     assert len(sink.results) == 8
 
 
 def test_loom_weaver_error_reported_via_hooks():
-    """Erro dentro do Processor chega aos hooks como WeaverError e não trava o Loom."""
+    """An error inside the Processor reaches the hooks as WeaverError and doesn't hang the Loom."""
 
     class BrokenProcessor(Processor):
         def process(self, batch):
@@ -185,7 +185,7 @@ def test_loom_weaver_error_reported_via_hooks():
         num_weavers=2,
     )
 
-    loom.start()  # não deve levantar nem travar
+    loom.start()  # must not raise or hang
 
     assert loom.state is LoomState.COMPLETED
     assert len(hooks.errors) == 3
@@ -194,14 +194,14 @@ def test_loom_weaver_error_reported_via_hooks():
 
 def test_loom_bounded_queue_processes_everything():
     """
-    Com fila pequena (backpressure), um source maior que a fila deve
-    ser processado por inteiro, sem perda nem deadlock.
+    With a small queue (backpressure), a source larger than the queue
+    must be fully processed, with no loss and no deadlock.
     """
     config = LoomConfig(
         output_dir=".",
         batch_size=1,
         interval_seconds=0,
-        queue_maxsize=2,  # bem menor que o volume do source
+        queue_maxsize=2,  # much smaller than the source volume
     )
     sink = InMemorySink()
     loom = Loom(
@@ -216,7 +216,7 @@ def test_loom_bounded_queue_processes_everything():
     runner.start()
     runner.join(timeout=10)
 
-    assert not runner.is_alive(), "Loom travou com fila limitada"
+    assert not runner.is_alive(), "Loom hung with a bounded queue"
     assert loom.task_queue.maxsize == 2
     assert sorted(r["data"] for r in sink.results) == list(range(50))
 
@@ -227,7 +227,7 @@ def test_loom_default_queue_size_scales_with_weavers():
 
 
 def test_loom_reports_batch_metrics_via_hooks():
-    """Cada lote processado com sucesso dispara on_batch_processed com resultado e duração."""
+    """Each successfully processed batch fires on_batch_processed with result and duration."""
     hooks = RecordingHooks()
     loom = _make_loom(FiniteSource([10, 20, 30]), hooks=hooks)
     loom.start()
@@ -239,7 +239,7 @@ def test_loom_reports_batch_metrics_via_hooks():
 
 
 def test_loom_no_batch_metrics_on_failure():
-    """Lote que falha não emite métrica de sucesso — só on_error."""
+    """A failing batch emits no success metric — only on_error."""
 
     class BrokenProcessor(Processor):
         def process(self, batch):
@@ -262,7 +262,7 @@ def test_loom_no_batch_metrics_on_failure():
 
 
 def test_loom_survives_broken_metrics_hook():
-    """Exceção dentro do on_batch_processed não pode derrubar o Weaver."""
+    """An exception inside on_batch_processed must not bring down the Weaver."""
 
     class BrokenMetricsHooks(RecordingHooks):
         def on_batch_processed(self, result, duration_seconds):
@@ -273,13 +273,13 @@ def test_loom_survives_broken_metrics_hook():
     loom = _make_loom(FiniteSource([1, 2, 3]), hooks=hooks, sink=sink)
     loom.start()
 
-    # Todos os itens foram processados apesar do hook quebrado
+    # Every item was processed despite the broken hook
     assert len(sink.results) == 3
     assert loom.state is LoomState.COMPLETED
 
 
 def test_loom_as_context_manager():
-    """O bloco with entrega o próprio Loom e garante stop() na saída."""
+    """The with block yields the Loom itself and guarantees stop() on exit."""
     hooks = RecordingHooks()
     sink = InMemorySink()
 
@@ -293,26 +293,26 @@ def test_loom_as_context_manager():
 
 
 def test_loom_context_manager_stops_on_exception():
-    """Exceção dentro do bloco with não pode vazar sem limpeza: stop() roda mesmo assim."""
+    """An exception inside the with block must not escape without cleanup: stop() still runs."""
     hooks = RecordingHooks()
     loom = _make_loom(FiniteSource([1]), hooks=hooks)
 
     with pytest.raises(RuntimeError, match="user code failed"):
         with loom:
-            # Weavers ainda nem iniciaram: o __exit__ deve encerrar sem travar
+            # The weavers never even started: __exit__ must shut down without hanging
             raise RuntimeError("user code failed")
 
     assert hooks.stopped
-    # start() nunca rodou, então o estado não deve fingir conclusão
+    # start() never ran, so the state must not pretend completion
     assert loom.state is LoomState.PENDING
 
 
 def test_loom_context_manager_after_start_is_noop():
-    """stop() do __exit__ após um start() completo não trava nem repete hooks."""
+    """__exit__'s stop() after a completed start() doesn't hang or repeat hooks."""
     hooks = RecordingHooks()
 
     with _make_loom(FiniteSource([1, 2]), hooks=hooks) as loom:
-        loom.start()  # start() já chama stop() internamente no finally
+        loom.start()  # start() already calls stop() internally in its finally
 
     assert loom.state is LoomState.COMPLETED
     assert hooks.stopped

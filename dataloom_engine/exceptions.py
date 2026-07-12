@@ -1,25 +1,25 @@
 # dataloom_engine/exceptions.py
 
 """
-Exceções personalizadas para o DataLoom.
-Permite que consumidores capturem erros específicos da biblioteca
-sem depender de exceções genéricas do Python.
+Custom exceptions for DataLoom.
+Lets consumers catch library-specific errors without relying on
+generic Python exceptions.
 """
 
 
 class LoomError(Exception):
-    """Exceção base para todos os erros do DataLoom."""
+    """Base exception for every DataLoom error."""
 
     pass
 
 
 class ConfigurationError(LoomError):
-    """Lançado quando há problemas na validação do LoomConfig."""
+    """Raised when LoomConfig validation fails."""
 
     pass
 
 
 class WeaverError(LoomError):
-    """Lançado quando um Weaver falha de forma irrecuperável."""
+    """Raised when a Weaver fails to process a batch."""
 
     pass

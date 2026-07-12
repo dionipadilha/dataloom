@@ -1,9 +1,9 @@
 # tests/test_core.py
 
-# Este arquivo cobre:
-# - O StatisticsProcessor (lógica matemática).
-# - O JsonFileSink (criação de arquivos e conteúdo JSON).
-# - O fluxo completo do Weaver (Threading e Fila), mas de forma controlada.
+# This file covers:
+# - The StatisticsProcessor (math logic).
+# - The JsonFileSink (file creation and JSON content).
+# - The full Weaver flow (threading and queue), in a controlled way.
 
 import json
 import queue
@@ -13,16 +13,16 @@ import numpy as np
 
 from dataloom_engine import JsonFileSink, Processor, Sink
 
-# Importando classes internas explicitamente para teste
+# Importing internal classes explicitly for testing
 from dataloom_engine.exceptions import WeaverError
 from dataloom_engine.processors import StatisticsProcessor
 from dataloom_engine.weaver import STOP_SENTINEL, Weaver
 
-# --- Mocks e Helpers ---
+# --- Mocks and helpers ---
 
 
 class MockSink(Sink):
-    """Sink em memória para evitar I/O em disco durante testes de Weaver."""
+    """In-memory sink to avoid disk I/O during Weaver tests."""
 
     def __init__(self):
         self.results = []
@@ -34,19 +34,19 @@ class MockSink(Sink):
 
 
 class SimpleProcessor(Processor):
-    """Processador determinístico para testes."""
+    """Deterministic processor for tests."""
 
     def process(self, batch):
         return {"sum": float(np.sum(batch))}
 
 
-# --- Testes Unitários ---
+# --- Unit tests ---
 
 
 def test_statistics_processor_logic():
-    """Verifica se a matemática do processador padrão está correta."""
+    """Verifies the math of the reference processor."""
     processor = StatisticsProcessor()
-    # Cria um batch simples: [1, 2, 3]
+    # Simple batch: [1, 2, 3]
     batch = np.array([1.0, 2.0, 3.0])
 
     result = processor.process(batch)
@@ -54,14 +54,14 @@ def test_statistics_processor_logic():
     assert result["min"] == 1.0
     assert result["max"] == 3.0
     assert result["mean"] == 2.0
-    # Desvio padrão de [1, 2, 3] é ~0.816
+    # Standard deviation of [1, 2, 3] is ~0.816
     assert abs(result["std"] - 0.81649) < 0.0001
 
 
 def test_json_sink_writes_file(tmp_path):
     """
-    Verifica se o JsonFileSink cria o arquivo e escreve JSON válido.
-    Usa 'tmp_path' (fixture do pytest) para criar pastas temporárias isoladas.
+    Verifies that JsonFileSink creates the file and writes valid JSON.
+    Uses 'tmp_path' (pytest fixture) for isolated temporary directories.
     """
     sink = JsonFileSink(output_dir=tmp_path)
     data = {"id": 1, "status": "ok"}
@@ -76,24 +76,24 @@ def test_json_sink_writes_file(tmp_path):
     assert loaded_json == data
 
 
-# --- Testes de Integração (Weaver/Fluxo) ---
+# --- Integration tests (Weaver/flow) ---
 
 
 def test_weaver_consumes_queue():
     """
-    Testa se um Weaver consome itens da fila e deposita no Sink.
-    Este teste simula o ciclo de vida sem iniciar o Loom inteiro.
+    Tests that a Weaver consumes items from the queue and deposits them
+    into the Sink. Simulates the lifecycle without starting a full Loom.
     """
     task_queue = queue.Queue()
     mock_sink = MockSink()
 
-    # Injeta 3 tarefas na fila, seguidas do sentinela de parada
+    # Inject 3 tasks into the queue, followed by the stop sentinel
     task_queue.put(np.array([1, 1]))
     task_queue.put(np.array([2, 2]))
     task_queue.put(np.array([3, 3]))
     task_queue.put(STOP_SENTINEL)
 
-    # Cria e inicia o Weaver
+    # Create and start the Weaver
     weaver = Weaver(
         task_queue=task_queue,
         processor=SimpleProcessor(),
@@ -101,22 +101,22 @@ def test_weaver_consumes_queue():
     )
     weaver.start()
 
-    # O Weaver drena a fila e encerra ao consumir o sentinela
+    # The Weaver drains the queue and exits upon consuming the sentinel
     weaver.join(timeout=2)
     assert not weaver.is_alive()
 
-    # Verificações
+    # Verify
     assert len(mock_sink.results) == 3
-    # A ordem pode variar em multithread, então somamos tudo para verificar integridade
+    # Order may vary across threads, so we sum everything to check integrity
     total_sum = sum(r["sum"] for r in mock_sink.results)
     assert total_sum == (2.0 + 4.0 + 6.0)  # [1,1]=2, [2,2]=4, [3,3]=6
 
 
 def test_weaver_handles_processor_error():
     """
-    Garante que o Weaver sobrevive a erros de processamento: a thread
-    continua viva, os itens seguintes são processados, a fila é limpa
-    (task_done) e o erro é reportado via callback on_error.
+    Guarantees the Weaver survives processing errors: the thread stays
+    alive, subsequent items are processed, the queue is cleaned up
+    (task_done) and the error is reported via the on_error callback.
     """
 
     class BrokenProcessor(Processor):
@@ -134,7 +134,7 @@ def test_weaver_handles_processor_error():
         with errors_lock:
             errors.append(exc)
 
-    # O item do meio quebra o processador; os demais devem passar
+    # The middle item breaks the processor; the others must pass
     task_queue.put(np.array([1]))
     task_queue.put(np.array([2]))
     task_queue.put(np.array([3]))
@@ -148,15 +148,15 @@ def test_weaver_handles_processor_error():
     )
     weaver.start()
 
-    # Se o finally block do Weaver não chamar task_done(), este join vai travar para sempre.
+    # If the Weaver's finally block doesn't call task_done(), this join hangs forever.
     task_queue.join()
     weaver.join(timeout=2)
     assert not weaver.is_alive()
 
-    # Os itens válidos foram processados apesar do erro no meio
+    # The valid items were processed despite the error in the middle
     assert sorted(r["sum"] for r in mock_sink.results) == [1.0, 3.0]
 
-    # O erro foi tipado e reportado
+    # The error was typed and reported
     assert len(errors) == 1
     assert isinstance(errors[0], WeaverError)
     assert isinstance(errors[0].__cause__, ValueError)

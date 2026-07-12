@@ -1,8 +1,8 @@
 # dataloom_engine/logs.py
 
 """
-Utilitários de configuração de logging para o DataLoom.
-Fornece um namespace estático para configuração rápida.
+Logging configuration utilities for DataLoom.
+Provides a static namespace for quick setup.
 """
 
 import logging
@@ -10,16 +10,16 @@ import logging
 
 class LoomLogs:
     """
-    Namespace utilitário para gerenciamento de logs do DataLoom.
-    Não deve ser instanciado, apenas usado estaticamente.
+    Utility namespace for DataLoom log management.
+    Not meant to be instantiated — use it statically.
     """
 
     @staticmethod
     def setup(level: int = logging.INFO) -> None:
         """
-        Configura o logging básico para stdout.
+        Configures basic logging to stdout.
 
-        Uso:
+        Usage:
             LoomLogs.setup(level=logging.DEBUG)
         """
         logging.basicConfig(

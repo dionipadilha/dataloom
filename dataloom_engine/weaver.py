@@ -1,9 +1,10 @@
 # dataloom_engine/weaver.py
 
 """
-Definição do Trabalhador (Weaver).
-Thread dedicada que consome tarefas da fila, processa e envia ao Sink.
-Este módulo é interno e não deve ser importado diretamente pelo usuário.
+The worker definition (Weaver).
+Dedicated thread that consumes tasks from the queue, processes them and
+sends the results to the Sink. This module is internal and should not
+be imported directly by users.
 """
 
 import logging
@@ -18,19 +19,19 @@ from dataloom_engine.sinks import Sink
 
 logger = logging.getLogger(__name__)
 
-# Sentinela interno: instrui o Weaver a encerrar. O Loom enfileira um
-# sentinela por Weaver após os dados, garantindo que a fila seja drenada
-# por completo antes das threads morrerem.
+# Internal sentinel: instructs the Weaver to exit. The Loom enqueues one
+# sentinel per Weaver after the data, guaranteeing the queue is fully
+# drained before the threads die.
 STOP_SENTINEL: Any = object()
 
 
 class Weaver(threading.Thread):
     """
-    Agente de execução que roda em uma thread separada.
-    Orquestra o fluxo: Fila -> Processor -> Sink.
+    Execution agent that runs in a separate thread.
+    Orchestrates the flow: Queue -> Processor -> Sink.
 
-    Erros de processamento não matam a thread: são convertidos em
-    WeaverError, logados e reportados via callback on_error (se fornecido).
+    Processing errors do not kill the thread: they are wrapped in
+    WeaverError, logged and reported via the on_error callback (if any).
     """
 
     def __init__(
@@ -56,7 +57,7 @@ class Weaver(threading.Thread):
                     return
                 self._process_batch(batch)
             finally:
-                # Sinaliza que o item da fila foi tratado (sucesso ou falha)
+                # Marks the queue item as handled (success or failure)
                 self.task_queue.task_done()
 
     def _process_batch(self, batch: Any) -> None:
@@ -66,19 +67,19 @@ class Weaver(threading.Thread):
             self.sink.send(result)
             duration = time.monotonic() - started
         except Exception as exc:
-            logger.exception("Weaver falhou ao processar um lote; o lote foi descartado.")
+            logger.exception("Weaver failed to process a batch; the batch was dropped.")
             if self.on_error is not None:
-                error = WeaverError(f"Falha ao processar lote: {exc}")
+                error = WeaverError(f"Failed to process batch: {exc}")
                 error.__cause__ = exc
                 try:
                     self.on_error(error)
                 except Exception:
-                    logger.exception("Callback on_error lançou uma exceção.")
+                    logger.exception("The on_error callback raised an exception.")
             return
 
-        # Métrica só é emitida em sucesso; falhas passam pelo on_error
+        # The metric is only emitted on success; failures go through on_error
         if self.on_batch_processed is not None:
             try:
                 self.on_batch_processed(result, duration)
             except Exception:
-                logger.exception("Callback on_batch_processed lançou uma exceção.")
+                logger.exception("The on_batch_processed callback raised an exception.")

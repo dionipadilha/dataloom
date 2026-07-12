@@ -1,40 +1,50 @@
 # dataloom_engine/processors.py
 
 """
-Contratos de processamento de dados.
-Define como os lotes (batches) são transformados antes de serem enviados ao Sink.
+Data processing contracts.
+Defines how batches are transformed before being sent to the Sink.
 """
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
-import numpy as np
+from dataloom_engine._optional import require_numpy
 
 
 class Processor(ABC):
-    """Interface base para transformação de dados."""
+    """Base interface for data transformation."""
 
     @abstractmethod
-    def process(self, batch: np.ndarray) -> Dict[str, Any]:
+    def process(self, batch: Any) -> Dict[str, Any]:
         """
-        Processa um lote de dados.
+        Processes a batch of data.
 
         Args:
-            batch: Array contendo os dados brutos (tamanho definido em LoomConfig).
+            batch: The raw data yielded by the Source. The engine imposes
+                no type — built-in sources yield NumPy arrays sized
+                according to LoomConfig.
 
         Returns:
-            Dict[str, Any]: Dicionário com os resultados processados.
+            Dict[str, Any]: Dictionary with the processed results.
         """
         pass
 
 
 class StatisticsProcessor(Processor):
     """
-    Implementação de referência que calcula estatísticas básicas.
-    Útil para testes e validação inicial.
+    Reference implementation that computes basic statistics.
+    Useful for tests and initial validation.
+
+    Requires the optional numpy dependency:
+        pip install "dataloom-engine[numpy]"
     """
 
-    def process(self, batch: np.ndarray) -> Dict[str, Any]:
+    def __init__(self) -> None:
+        # Fail fast at construction if the optional dependency is missing
+        self._np = require_numpy("StatisticsProcessor")
+
+    def process(self, batch: Any) -> Dict[str, Any]:
+        np = self._np
         return {
             "mean": float(np.mean(batch)),
             "std": float(np.std(batch)),

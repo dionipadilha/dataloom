@@ -14,7 +14,7 @@
 ⚡ Performance: real parallel processing for I/O-bound workloads.
 🧩 Simplicity: an intuitive API inspired by the weaving metaphor.
 🛡️ Safety: thread-safety guaranteed by design across the whole pipeline.
-📦 Lightweight: minimal dependencies, ready to run in any Python environment.
+📦 Lightweight: zero-dependency core, ready to run in any Python environment.
 
 ### Why not just `ThreadPoolExecutor`?
 
@@ -51,6 +51,14 @@ work, prefer multiprocessing.
 
 ```bash
 pip install dataloom-engine
+```
+
+The engine core has **zero dependencies**. The demo `RandomNumPySource` and
+`StatisticsProcessor` (used in the quick start below) need NumPy, which
+ships as an optional extra:
+
+```bash
+pip install "dataloom-engine[numpy]"
 ```
 
 > ⚠️ **Mind the name:** the package installs the `dataloom_engine` module

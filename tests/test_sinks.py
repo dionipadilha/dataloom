@@ -53,7 +53,7 @@ def test_threaded_sink_delivers_all_items():
 
 
 def test_threaded_sink_rejects_send_after_close():
-    """send() após close() deve falhar explicitamente, não perder dados em silêncio."""
+    """send() after close() must fail explicitly, not drop data silently."""
     target = MockSink()
     buffered_sink = ThreadedBufferedSink(target)
     buffered_sink.close()
@@ -63,7 +63,7 @@ def test_threaded_sink_rejects_send_after_close():
 
 
 def test_threaded_sink_close_is_idempotent():
-    """close() repetido não deve travar nem fechar o alvo duas vezes."""
+    """Repeated close() must not hang or close the target twice."""
     target = MockSink()
     buffered_sink = ThreadedBufferedSink(target)
 
@@ -74,7 +74,7 @@ def test_threaded_sink_close_is_idempotent():
 
 
 def test_threaded_sink_survives_target_errors():
-    """Falha no sink alvo não pode matar o worker: itens seguintes continuam fluindo."""
+    """A target sink failure must not kill the worker: later items keep flowing."""
 
     class FlakySink(Sink):
         def __init__(self):
@@ -83,7 +83,7 @@ def test_threaded_sink_survives_target_errors():
 
         def send(self, result):
             if result["id"] == 1:
-                raise IOError("disco cheio!")
+                raise IOError("disk full!")
             with self._lock:
                 self.results.append(result)
 
@@ -98,7 +98,7 @@ def test_threaded_sink_survives_target_errors():
 
 
 def test_csv_sink_writes_header_and_rows(tmp_path):
-    """O CSV recebe cabeçalho na primeira escrita e uma linha por resultado."""
+    """The CSV gets a header on first write and one row per result."""
     sink = CsvFileSink(output_dir=tmp_path)
     sink.send({"id": 1, "status": "ok"})
     sink.send({"id": 2, "status": "fail"})
@@ -113,11 +113,11 @@ def test_csv_sink_writes_header_and_rows(tmp_path):
 
 
 def test_csv_sink_handles_key_variations(tmp_path):
-    """Chaves extras são ignoradas, ausentes ficam vazias; cabeçalho vem do primeiro resultado."""
+    """Extra keys are ignored, missing ones left empty; header comes from the first result."""
     sink = CsvFileSink(output_dir=tmp_path)
     sink.send({"a": 1, "b": 2})
-    sink.send({"a": 3, "b": 4, "extra": 99})  # extra ignorada
-    sink.send({"a": 5})  # b ausente fica vazia
+    sink.send({"a": 3, "b": 4, "extra": 99})  # extra ignored
+    sink.send({"a": 5})  # missing b left empty
 
     with open(tmp_path / "results.csv", newline="") as f:
         reader = csv.DictReader(f)
@@ -129,7 +129,7 @@ def test_csv_sink_handles_key_variations(tmp_path):
 
 
 def test_csv_sink_concurrent_writes(tmp_path):
-    """Escritas de múltiplas threads não podem corromper ou perder linhas."""
+    """Writes from multiple threads must not corrupt or lose rows."""
     sink = CsvFileSink(output_dir=tmp_path)
 
     def write_batch(offset):
@@ -163,19 +163,19 @@ def test_callback_sink_delegates_send_and_close():
 
 def test_callback_sink_close_without_handler_is_noop():
     sink = CallbackSink(lambda result: None)
-    sink.close()  # não deve levantar
+    sink.close()  # must not raise
 
 
 def test_threaded_sink_no_data_loss_on_racy_close():
     """
-    Regressão da corrida do worker antigo (stop_event + queue.empty()):
-    fechar imediatamente após enviar não pode perder itens.
+    Regression for the old worker race (stop_event + queue.empty()):
+    closing right after sending must not lose items.
     """
-    for _ in range(20):  # repete para dar chance à corrida
+    for _ in range(20):  # repeat to give the race a chance
         target = MockSink()
         buffered_sink = ThreadedBufferedSink(target)
         for i in range(10):
             buffered_sink.send({"id": i})
-        buffered_sink.close()  # sem esperar o worker
+        buffered_sink.close()  # without waiting for the worker
 
         assert len(target.results) == 10

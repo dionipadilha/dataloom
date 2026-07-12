@@ -1,8 +1,8 @@
 # dataloom_engine/config.py
 
 """
-Gerenciamento de configuração do orquestrador.
-Centraliza parâmetros operacionais como diretórios e tamanhos de lote.
+Orchestrator configuration management.
+Centralizes operational parameters such as directories and batch sizes.
 """
 
 from dataclasses import dataclass
@@ -15,19 +15,19 @@ from dataloom_engine.exceptions import ConfigurationError
 @dataclass
 class LoomConfig:
     """
-    Objeto de configuração principal do DataLoom.
+    DataLoom's main configuration object.
 
     Args:
-        output_dir (Path): Diretório base onde os Sinks padrão salvarão dados.
-            Strings são convertidas para Path automaticamente.
-        batch_size (int): Quantidade de itens gerados por ciclo de processamento.
-        interval_seconds (float): Intervalo de tempo entre gerações de tarefas.
-        queue_maxsize (Optional[int]): Capacidade máxima da fila de tarefas
-            (backpressure). None usa o padrão do Loom (num_weavers * 4);
-            0 significa fila ilimitada.
+        output_dir (Path): Base directory where the built-in Sinks save data.
+            Strings are converted to Path automatically.
+        batch_size (int): Number of items produced per processing cycle.
+        interval_seconds (float): Time interval between task generations.
+        queue_maxsize (Optional[int]): Maximum capacity of the task queue
+            (backpressure). None uses the Loom default (num_weavers * 4);
+            0 means an unbounded queue.
 
     Raises:
-        ConfigurationError: se algum parâmetro for inválido.
+        ConfigurationError: if any parameter is invalid.
     """
 
     output_dir: Union[str, Path]
@@ -40,13 +40,13 @@ class LoomConfig:
 
         if self.batch_size <= 0:
             raise ConfigurationError(
-                f"batch_size deve ser maior que zero (recebido: {self.batch_size})."
+                f"batch_size must be greater than zero (got: {self.batch_size})."
             )
         if self.interval_seconds < 0:
             raise ConfigurationError(
-                f"interval_seconds não pode ser negativo (recebido: {self.interval_seconds})."
+                f"interval_seconds cannot be negative (got: {self.interval_seconds})."
             )
         if self.queue_maxsize is not None and self.queue_maxsize < 0:
             raise ConfigurationError(
-                f"queue_maxsize não pode ser negativo (recebido: {self.queue_maxsize})."
+                f"queue_maxsize cannot be negative (got: {self.queue_maxsize})."
             )
