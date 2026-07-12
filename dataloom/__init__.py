@@ -14,7 +14,13 @@ from dataloom.hooks import LoomHooks
 from dataloom.logs import LoomLogs
 from dataloom.loom import Loom
 from dataloom.processors import Processor
-from dataloom.sinks import JsonFileSink, Sink, ThreadedBufferedSink
+from dataloom.sinks import (
+    CallbackSink,
+    CsvFileSink,
+    JsonFileSink,
+    Sink,
+    ThreadedBufferedSink,
+)
 from dataloom.types import LoomState
 from dataloom.sources import Source
 
@@ -25,6 +31,8 @@ __all__ = [
     "Processor",
     "Sink",
     "JsonFileSink",
+    "CsvFileSink",
+    "CallbackSink",
     "ThreadedBufferedSink",
     "Source",
     "LoomHooks",
