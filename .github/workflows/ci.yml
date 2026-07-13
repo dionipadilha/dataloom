@@ -31,6 +31,32 @@ jobs:
       - name: Type-check (mypy)
         run: mypy
 
+  # Garante o contrato "zero-dependency core" de verdade: instala o pacote
+  # sem nenhum extra e roda a suíte puro-Python num ambiente sem numpy.
+  core-no-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the core with no extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          pip install pytest
+
+      - name: Ensure numpy is absent
+        run: python -c "import importlib.util, sys; sys.exit(1 if importlib.util.find_spec('numpy') else 0)"
+
+      - name: Import and run the pure-Python tests
+        run: |
+          python -c "import dataloom_engine"
+          pytest tests/test_optional.py tests/test_config.py tests/test_sinks.py
+
   build:
     runs-on: ubuntu-latest
     strategy:

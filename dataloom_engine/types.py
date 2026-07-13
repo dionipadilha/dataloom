@@ -14,5 +14,6 @@ class LoomState(Enum):
 
     PENDING = "pending"
     RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    COMPLETED = "completed"  # the source was exhausted naturally
+    STOPPED = "stopped"  # interrupted (external stop() or KeyboardInterrupt) before exhaustion
+    FAILED = "failed"  # the source raised an error

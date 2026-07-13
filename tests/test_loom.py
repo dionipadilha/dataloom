@@ -1,6 +1,7 @@
 # tests/test_loom.py
 
 import threading
+import time
 from typing import Any, Iterator
 
 import numpy as np
@@ -273,6 +274,105 @@ def test_loom_survives_broken_metrics_hook():
     # Every item was processed despite the broken hook
     assert len(sink.results) == 3
     assert loom.state is LoomState.COMPLETED
+
+
+def test_loom_external_stop_sets_stopped_state():
+    """stop() before the source is exhausted must end as STOPPED, not COMPLETED."""
+
+    class InfiniteSource(Source):
+        def __iter__(self) -> Iterator[Any]:
+            i = 0
+            while True:
+                yield np.array([i])
+                i += 1
+
+    hooks = RecordingHooks()
+    sink = InMemorySink()
+    loom = _make_loom(InfiniteSource(), hooks=hooks, sink=sink)
+
+    runner = threading.Thread(target=loom.start, daemon=True)
+    runner.start()
+    # Wait until the pipeline is demonstrably flowing before stopping it
+    for _ in range(500):
+        with sink._lock:
+            if sink.results:
+                break
+        time.sleep(0.01)
+    assert sink.results, "pipeline never produced a result"
+
+    loom.stop()
+    runner.join(timeout=5)
+
+    assert not runner.is_alive(), "start() did not return after stop()"
+    assert loom.state is LoomState.STOPPED
+    assert hooks.stopped
+
+
+def test_loom_keyboard_interrupt_sets_stopped_state():
+    """Ctrl+C is an interruption: the state must be STOPPED, not COMPLETED or FAILED."""
+
+    class InterruptingSource(Source):
+        def __iter__(self) -> Iterator[Any]:
+            yield np.array([1])
+            raise KeyboardInterrupt
+
+    hooks = RecordingHooks()
+    loom = _make_loom(InterruptingSource(), hooks=hooks)
+
+    with pytest.raises(KeyboardInterrupt):
+        loom.start()
+
+    assert loom.state is LoomState.STOPPED
+    assert hooks.stopped  # cleanup still ran
+    assert hooks.errors == []  # an interruption is not an error
+
+
+def test_loom_stop_timeout_reports_stuck_weaver():
+    """stop(timeout=...) returns even with a hung Processor and reports it via on_error."""
+    entered = threading.Event()
+    release = threading.Event()
+
+    class BlockingProcessor(Processor):
+        def process(self, batch):
+            entered.set()
+            release.wait(timeout=10)
+            return {"data": batch[0]}
+
+    class GatedSource(Source):
+        """Yields one batch, then keeps the producer inside the loop until released."""
+
+        def __iter__(self) -> Iterator[Any]:
+            yield np.array([1])
+            release.wait(timeout=10)
+
+    hooks = RecordingHooks()
+    config = LoomConfig(output_dir=".", batch_size=1, interval_seconds=0)
+    loom = Loom(
+        config=config,
+        processor=BlockingProcessor(),
+        sink=InMemorySink(),
+        source=GatedSource(),
+        hooks=hooks,
+        num_weavers=1,
+    )
+
+    runner = threading.Thread(target=loom.start, daemon=True)
+    runner.start()
+    assert entered.wait(timeout=5), "the weaver never picked up the batch"
+
+    started = time.monotonic()
+    loom.stop(timeout=0.2)
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 5, "stop(timeout) blocked far beyond its deadline"
+    assert loom.state is LoomState.STOPPED
+    assert any("stop timeout" in str(e) for e in hooks.errors)
+    assert hooks.stopped  # the sink was closed and on_stop fired despite the stuck weaver
+
+    # Cleanup: unblock everything so the test leaves no lingering threads
+    release.set()
+    runner.join(timeout=5)
+    assert not runner.is_alive()
 
 
 @pytest.mark.parametrize("num_weavers", [0, -1])
