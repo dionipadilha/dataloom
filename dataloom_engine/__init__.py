@@ -8,6 +8,8 @@ such as 'Weaver' are deliberately not exposed, keeping the usage surface
 clean and safe for consumers.
 """
 
+from importlib.metadata import PackageNotFoundError, version
+
 from dataloom_engine.config import LoomConfig
 from dataloom_engine.exceptions import ConfigurationError, LoomError, WeaverError
 from dataloom_engine.hooks import LoomHooks
@@ -24,7 +26,13 @@ from dataloom_engine.sinks import (
 from dataloom_engine.sources import Source
 from dataloom_engine.types import LoomState
 
+try:
+    __version__ = version("dataloom-engine")
+except PackageNotFoundError:  # pragma: no cover -- running from an uninstalled source tree
+    __version__ = "0+unknown"
+
 __all__ = [
+    "__version__",
     "Loom",
     "LoomConfig",
     "LoomState",

@@ -44,17 +44,16 @@ class JsonFileSink(Sink):
     Uses a threading.Lock to keep concurrent writes consistent.
     """
 
-    def __init__(self, output_dir: Path):
-        self.output_dir = output_dir
+    def __init__(self, output_dir: Path, filename: str = "results.json"):
+        self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self._path = self.output_dir / filename
         # The lock ensures only one Weaver writes to the file at a time
         self._lock = threading.Lock()
 
     def send(self, result: Dict[str, Any]) -> None:
-        filename = self.output_dir / "results.json"
-
         with self._lock:
-            with open(filename, "a") as f:
+            with open(self._path, "a") as f:
                 json.dump(result, f)
                 f.write("\n")
 
@@ -138,9 +137,14 @@ class ThreadedBufferedSink(Sink):
         self.worker_thread.start()
 
     def send(self, result: Dict[str, Any]) -> None:
-        if self._closed:
-            raise LoomError("ThreadedBufferedSink is already closed; send() is not allowed.")
-        self.queue.put(result)
+        # The closed check and the put must be atomic with respect to
+        # close(): otherwise a send() racing with close() could pass the
+        # check, lose the CPU while close() drains the buffer, and then
+        # enqueue the item behind the stop sentinel — silently lost.
+        with self._close_lock:
+            if self._closed:
+                raise LoomError("ThreadedBufferedSink is already closed; send() is not allowed.")
+            self.queue.put(result)
 
     def _worker(self) -> None:
         while True:
@@ -157,15 +161,16 @@ class ThreadedBufferedSink(Sink):
                 self.queue.task_done()
 
     def close(self) -> None:
-        # Idempotent: only the first call performs the shutdown
+        # Idempotent: only the first call performs the shutdown. The
+        # sentinel is enqueued under the same lock as send(), so it is
+        # guaranteed to land behind every accepted item — the worker
+        # drains all of them before exiting.
         with self._close_lock:
             if self._closed:
                 return
             self._closed = True
+            self.queue.put(self._STOP)
 
-        # The sentinel goes in behind any pending items: the worker
-        # drains everything before exiting
-        self.queue.put(self._STOP)
         self.worker_thread.join()
 
         # Propagate the close

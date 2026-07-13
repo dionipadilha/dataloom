@@ -11,11 +11,12 @@ import threading
 
 import numpy as np
 
-from dataloom_engine import JsonFileSink, Processor, Sink
+from dataloom_engine import JsonFileSink, LoomConfig, Processor, Sink
 
 # Importing internal classes explicitly for testing
 from dataloom_engine.exceptions import WeaverError
 from dataloom_engine.processors import StatisticsProcessor
+from dataloom_engine.sources import RandomNumPySource
 from dataloom_engine.weaver import STOP_SENTINEL, Weaver
 
 # --- Mocks and helpers ---
@@ -74,6 +75,30 @@ def test_json_sink_writes_file(tmp_path):
     content = expected_file.read_text()
     loaded_json = json.loads(content)
     assert loaded_json == data
+
+
+def test_json_sink_accepts_custom_filename(tmp_path):
+    """The output filename is configurable (parity with CsvFileSink)."""
+    sink = JsonFileSink(output_dir=tmp_path, filename="custom.jsonl")
+    sink.send({"id": 7})
+
+    assert (tmp_path / "custom.jsonl").exists()
+    assert not (tmp_path / "results.json").exists()
+    assert json.loads((tmp_path / "custom.jsonl").read_text()) == {"id": 7}
+
+
+def test_random_numpy_source_respects_limit_and_batch_size():
+    """The demo source yields exactly `limit` batches of `batch_size` values in [0, 1)."""
+    config = LoomConfig(output_dir=".", batch_size=5, interval_seconds=0)
+    source = RandomNumPySource(config, limit=3)
+
+    batches = list(source)
+
+    assert len(batches) == 3
+    for batch in batches:
+        assert len(batch) == 5
+        assert float(batch.min()) >= 0.0
+        assert float(batch.max()) < 1.0
 
 
 # --- Integration tests (Weaver/flow) ---
