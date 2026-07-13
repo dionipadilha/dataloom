@@ -78,7 +78,7 @@ def main() -> None:
         with collect_lock:
             enriched.append(result)
 
-    config = LoomConfig(output_dir=".", interval_seconds=0)  # output_dir unused here
+    config = LoomConfig(interval_seconds=0)  # no file sink involved, so no output_dir
     hooks = ThroughputHooks()
 
     started = time.monotonic()
