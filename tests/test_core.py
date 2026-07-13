@@ -181,7 +181,44 @@ def test_weaver_handles_processor_error():
     # The valid items were processed despite the error in the middle
     assert sorted(r["sum"] for r in mock_sink.results) == [1.0, 3.0]
 
-    # The error was typed and reported
+    # The error was typed and reported, with full failure context
     assert len(errors) == 1
     assert isinstance(errors[0], WeaverError)
     assert isinstance(errors[0].__cause__, ValueError)
+    assert errors[0].stage == "process"
+    assert list(errors[0].batch) == [2]  # the exact batch that failed
+
+
+def test_weaver_reports_sink_failure_with_send_stage():
+    """A Sink failure is reported as WeaverError with stage='send' and the original batch."""
+
+    class BrokenSink(Sink):
+        def send(self, result):
+            raise IOError("disk full!")
+
+    task_queue = queue.Queue()
+    errors = []
+    errors_lock = threading.Lock()
+
+    def on_error(exc):
+        with errors_lock:
+            errors.append(exc)
+
+    task_queue.put(np.array([7]))
+    task_queue.put(STOP_SENTINEL)
+
+    weaver = Weaver(
+        task_queue=task_queue,
+        processor=SimpleProcessor(),
+        sink=BrokenSink(),
+        on_error=on_error,
+    )
+    weaver.start()
+    weaver.join(timeout=2)
+    assert not weaver.is_alive()
+
+    assert len(errors) == 1
+    assert isinstance(errors[0], WeaverError)
+    assert errors[0].stage == "send"
+    assert list(errors[0].batch) == [7]
+    assert isinstance(errors[0].__cause__, IOError)

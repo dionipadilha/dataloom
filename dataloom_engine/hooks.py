@@ -29,6 +29,11 @@ class LoomHooks:
         Called when an exception occurs in the Loom's main loop or while
         processing a batch inside a Weaver (WeaverError).
 
+        Batch-level failures arrive as WeaverError carrying the failed
+        batch (`error.batch`) and the stage where it broke
+        (`error.stage`: "process" or "send"), enabling retry, quarantine
+        or dead-letter handling without parsing error messages.
+
         Note: it may be invoked from multiple Weaver threads at the same
         time — implementations must be thread-safe.
         """

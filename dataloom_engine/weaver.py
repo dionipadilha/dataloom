@@ -61,15 +61,19 @@ class Weaver(threading.Thread):
                 self.task_queue.task_done()
 
     def _process_batch(self, batch: Any) -> None:
+        stage = "process"
         try:
             started = time.monotonic()
             result = self.processor.process(batch)
+            stage = "send"
             self.sink.send(result)
             duration = time.monotonic() - started
         except Exception as exc:
-            logger.exception("Weaver failed to process a batch; the batch was dropped.")
+            logger.exception("Weaver failed to %s a batch; the batch was dropped.", stage)
             if self.on_error is not None:
-                error = WeaverError(f"Failed to process batch: {exc}")
+                # The failed batch and the stage travel with the error so
+                # hooks can retry or quarantine without parsing strings
+                error = WeaverError(f"Failed to {stage} batch: {exc}", batch=batch, stage=stage)
                 error.__cause__ = exc
                 try:
                     self.on_error(error)

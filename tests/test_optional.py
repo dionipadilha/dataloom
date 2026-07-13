@@ -68,7 +68,8 @@ def test_pipeline_runs_without_numpy():
             self.results.append(result)
 
     sink = CollectSink()
-    config = LoomConfig(output_dir=".", batch_size=1, interval_seconds=0)
+    # No file sink involved: output_dir can simply be omitted
+    config = LoomConfig(batch_size=1, interval_seconds=0)
     with Loom(config=config, processor=SumProcessor(), sink=sink, source=ListSource()) as loom:
         loom.start()
 

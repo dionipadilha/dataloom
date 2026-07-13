@@ -19,6 +19,18 @@ def test_config_coerces_output_dir_to_path():
     assert isinstance(config.output_dir, Path)
 
 
+def test_config_output_dir_is_optional():
+    """Pipelines without file-based sinks don't need to invent a directory."""
+    config = LoomConfig()
+    assert config.output_dir is None
+    assert config.batch_size == 10  # remaining defaults still apply
+
+
+def test_config_validation_still_runs_without_output_dir():
+    with pytest.raises(ConfigurationError):
+        LoomConfig(batch_size=0)
+
+
 def test_config_accepts_float_interval():
     config = LoomConfig(output_dir=".", interval_seconds=0.25)
     assert config.interval_seconds == 0.25
