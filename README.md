@@ -154,6 +154,51 @@ DataLoom is built around a weaving metaphor:
 - **Processor:** the business logic. Turns raw data into information.
 - **Sink:** the final destination. Where the finished product is deposited (e.g. `JsonFileSink`, `CsvFileSink`, or any destination via `CallbackSink`).
 
+## 🧶 Threading model
+
+Knowing which thread runs each extension point is what makes writing
+safe Processors, Sinks and Hooks straightforward:
+
+| Your code                                      | Runs on                                          |
+| ---------------------------------------------- | ------------------------------------------------ |
+| `Source.__iter__`                              | the thread that called `loom.start()` (producer) |
+| `Processor.process` / `Sink.send`              | the Weaver threads, **concurrently**             |
+| `hooks.on_error` / `hooks.on_batch_processed`  | the Weaver threads, **concurrently**             |
+| `hooks.on_start` / `hooks.on_stop` / `Sink.close` | the thread that called `start()` / `stop()`   |
+
+Practical consequences:
+
+- **Processors and Sinks must be thread-safe** if they touch shared
+  state (the built-in sinks are; `CallbackSink` callables must be).
+- **Hooks run on the hot path**: keep `on_batch_processed` fast and
+  thread-safe.
+- **Shutdown semantics:** `stop()` (or leaving the `with` block) drains
+  the items already queued, then joins the Weavers — pass
+  `stop(timeout=...)` to bound the wait. A pipeline whose source was
+  exhausted ends as `COMPLETED`; an interrupted one (external `stop()`,
+  `Ctrl+C`) ends as `STOPPED`; a source error ends as `FAILED`.
+
+## 📊 Benchmarks
+
+Reproducible, zero-dependency benchmarks live in
+[`benchmarks/throughput.py`](benchmarks/throughput.py):
+
+```bash
+python benchmarks/throughput.py
+```
+
+Reference numbers from a 4-vCPU Linux container (treat them as an order
+of magnitude — run it on your own hardware):
+
+| Scenario                                   | Result           |
+| ------------------------------------------ | ---------------- |
+| I/O-bound, 200 items × 10ms, 8 weavers     | **7.8x** speedup over sequential |
+| No-op processor (pure engine overhead)     | ~51,000 items/s (~20µs per item) |
+
+The rule of thumb the second number gives you: if your per-item work
+costs less than ~20µs, a plain loop beats any orchestration — DataLoom
+pays off when each item does real I/O or meaningful work.
+
 ## 🛠️ Development and Testing
 
 To contribute to the project or run the test suite:

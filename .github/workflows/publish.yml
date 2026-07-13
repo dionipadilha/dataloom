@@ -1,9 +1,9 @@
 name: Publish to PyPI
 
-# Dispara quando um release é publicado no GitHub.
-# Usa Trusted Publishing (OIDC): sem tokens ou senhas armazenados.
-# Pré-requisito (uma única vez): cadastrar este repositório como
-# "pending publisher" do projeto dataloom-engine em
+# Fires when a release is published on GitHub.
+# Uses Trusted Publishing (OIDC): no stored tokens or passwords.
+# One-time prerequisite: register this repository as a
+# "pending publisher" of the dataloom-engine project at
 # https://pypi.org/manage/account/publishing/
 #   - Project name: dataloom-engine
 #   - Owner: dionipadilha / Repository: dataloom
@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Evita publicar no PyPI uma versão diferente da que a tag anuncia
+      # Prevents publishing a version different from what the tag announces
       - name: Verify release tag matches pyproject version
         run: |
           version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
-      # Obrigatório para o Trusted Publishing (OIDC)
+      # Required for Trusted Publishing (OIDC)
       id-token: write
     steps:
       - name: Download distributions

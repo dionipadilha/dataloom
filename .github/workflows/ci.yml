@@ -1,6 +1,6 @@
 name: CI
 
-# Roda quando faz push na main ou abre um Pull Request
+# Runs on pushes to main and on every pull request
 on:
   push:
     branches: ["main"]
@@ -31,8 +31,8 @@ jobs:
       - name: Type-check (mypy)
         run: mypy
 
-  # Garante o contrato "zero-dependency core" de verdade: instala o pacote
-  # sem nenhum extra e roda a suíte puro-Python num ambiente sem numpy.
+  # Guards the "zero-dependency core" contract for real: installs the
+  # package with no extras and runs the pure-Python tests without numpy.
   core-no-deps:
     runs-on: ubuntu-latest
     steps:
@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
@@ -79,3 +79,27 @@ jobs:
       - name: Run tests with pytest
         run: |
           pytest --cov=dataloom_engine
+
+  # Experimental (not a required check): validates that the engine's
+  # thread-safety holds on free-threaded Python (PEP 703), where the
+  # GIL no longer serializes the Weavers.
+  free-threaded:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up free-threaded Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14t"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests with the GIL disabled
+        env:
+          PYTHON_GIL: "0"
+        run: python -m pytest -q
