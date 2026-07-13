@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dataloom-engine"
-version = "0.6.0"
+version = "0.7.0"
 description = "DataLoom: a lightweight and efficient thread orchestration engine for data pipelines."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -23,6 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
@@ -68,9 +69,9 @@ select = [
     "B",  # flake8-bugbear
 ]
 
-# Sem python_version fixo: versões novas do mypy não aceitam mais alvo 3.9,
-# e os stubs do numpy exigem alvo >= 3.12. A compatibilidade com 3.9 é
-# garantida pela matriz de testes do CI, que executa nessa versão.
+# No pinned python_version: recent mypy releases no longer accept a 3.9
+# target, and the numpy stubs require >= 3.12. Compatibility with 3.9 is
+# guaranteed by the CI test matrix, which runs on that version.
 [tool.mypy]
 files = ["dataloom_engine"]
 check_untyped_defs = true
@@ -78,7 +79,7 @@ warn_redundant_casts = true
 no_implicit_optional = true
 
 [[tool.mypy.overrides]]
-# numpy é usado apenas nas implementações de demonstração; ignorar stubs
-# ausentes mantém o check estável em ambientes sem os type stubs resolvidos
+# numpy is only used by the demo implementations; ignoring missing stubs
+# keeps the check stable in environments without resolved type stubs
 module = "numpy.*"
 ignore_missing_imports = true

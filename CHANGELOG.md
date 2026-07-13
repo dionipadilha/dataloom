@@ -5,6 +5,28 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-07-13
+
+### Added
+
+- Reproducible, zero-dependency benchmark (`benchmarks/throughput.py`)
+  measuring the I/O-bound speedup and the engine's per-item overhead,
+  with reference numbers and an honest "when NOT to use DataLoom" rule
+  of thumb in the README.
+- "Threading model" README section documenting which thread runs each
+  extension point (Source, Processor, Sink, hooks) and the practical
+  thread-safety consequences.
+- Python 3.14 in the CI test matrix and package classifiers.
+- Experimental free-threaded CI job (PEP 703, `3.14t`, `PYTHON_GIL=0`)
+  validating the engine's thread-safety without the GIL. Non-blocking
+  while the free-threaded ecosystem stabilizes.
+
+### Changed
+
+- Remaining Portuguese comments in the CI/publish workflows and
+  `pyproject.toml` translated to English, completing the 0.4.0
+  internationalization.
+
 ## [0.6.0] - 2026-07-13
 
 ### Added
@@ -174,6 +196,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   `JsonFileSink`, `ThreadedBufferedSink`, lifecycle hooks (`LoomHooks`),
   logging (`LoomLogs`) and typed exceptions (`LoomError`).
 
+[0.7.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.7.0
 [0.6.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.6.0
 [0.5.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.5.0
 [0.4.1]: https://github.com/dionipadilha/dataloom/releases/tag/v0.4.1
