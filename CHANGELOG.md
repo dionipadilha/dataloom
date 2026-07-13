@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-07-13
+
+### Added
+
+- `WeaverError` now carries the failure context: `error.batch` (the
+  exact object yielded by the Source) and `error.stage` (`"process"` or
+  `"send"`). `hooks.on_error` implementations can now retry, quarantine
+  or dead-letter failed batches without parsing error strings.
+
+### Changed
+
+- `LoomConfig.output_dir` is now **optional**. The engine core never
+  reads it — it only serves file-based sinks — so pipelines using
+  `CallbackSink` or custom sinks no longer need to invent a fake
+  directory. Passing it keeps working unchanged (including
+  positionally); note for typed consumers: the attribute is now
+  `Optional[Path]`.
+- `JsonFileSink` and `CsvFileSink` keep the output file open across
+  `send()` calls instead of reopening it per result, removing an
+  open/close syscall pair from the hot path. Every write is still
+  flushed (results remain immediately visible to readers), `close()`
+  releases the handle and a later `send()` transparently reopens in
+  append mode.
+
 ## [0.5.0] - 2026-07-13
 
 ### Added
@@ -150,6 +174,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   `JsonFileSink`, `ThreadedBufferedSink`, lifecycle hooks (`LoomHooks`),
   logging (`LoomLogs`) and typed exceptions (`LoomError`).
 
+[0.6.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.6.0
 [0.5.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.5.0
 [0.4.1]: https://github.com/dionipadilha/dataloom/releases/tag/v0.4.1
 [0.4.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.4.0
