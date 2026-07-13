@@ -5,6 +5,34 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-07-13
+
+### Fixed
+
+- `Loom` now validates `num_weavers` and raises `ConfigurationError` when
+  it is less than 1. Previously, `num_weavers=0` silently created an
+  **unbounded** queue (`0 * 4 = 0` = no limit) and the pipeline finished
+  as `COMPLETED` without processing a single item.
+- `Loom.start()` is now explicitly single-use: calling it on an instance
+  that has already started or stopped raises `LoomError`. Previously, a
+  second `start()` spawned Weaver threads that never received a stop
+  sentinel — leaking threads and leaving the state stuck in `RUNNING`.
+- `ThreadedBufferedSink`: closed a race between `send()` and `close()`.
+  The closed-check and the enqueue now happen atomically under the close
+  lock; previously an item could slip in behind the stop sentinel and be
+  silently lost — without the documented `LoomError`.
+
+### Added
+
+- `dataloom_engine.__version__`, read from the installed package metadata.
+- `JsonFileSink` accepts a custom `filename` (parity with `CsvFileSink`);
+  the default `results.json` is unchanged.
+
+### Changed
+
+- The PyPI package `description` is now in English, matching the primary
+  README and the rest of the 0.4.0 internationalization.
+
 ## [0.4.0] - 2026-07-12
 
 ### Changed
@@ -94,6 +122,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   `JsonFileSink`, `ThreadedBufferedSink`, lifecycle hooks (`LoomHooks`),
   logging (`LoomLogs`) and typed exceptions (`LoomError`).
 
+[0.4.1]: https://github.com/dionipadilha/dataloom/releases/tag/v0.4.1
 [0.4.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.4.0
 [0.3.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.3.0
 [0.2.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.2.0

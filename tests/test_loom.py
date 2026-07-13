@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from dataloom_engine import Loom, LoomConfig, LoomHooks, LoomState, Processor, Sink
-from dataloom_engine.exceptions import WeaverError
+from dataloom_engine.exceptions import ConfigurationError, LoomError, WeaverError
 from dataloom_engine.sources import Source
 
 # --- Mocks ---
@@ -61,11 +61,8 @@ def test_loom_uses_custom_source():
 
     loom = Loom(config=config, processor=processor, sink=sink, source=source, num_weavers=2)
 
-    # Run Loom (start blocks until source is exhausted or error)
-    # But wait, Loom.start() blocks until source is exhausted AND then calls stop().
-    # Since our source is finite, it should finish naturally.
-    if hasattr(loom, "start"):
-        loom.start()
+    # start() blocks until the finite source is exhausted, then stops itself
+    loom.start()
 
     # Verify results
     assert len(sink.results) == 3
@@ -276,6 +273,62 @@ def test_loom_survives_broken_metrics_hook():
     # Every item was processed despite the broken hook
     assert len(sink.results) == 3
     assert loom.state is LoomState.COMPLETED
+
+
+@pytest.mark.parametrize("num_weavers", [0, -1])
+def test_loom_rejects_non_positive_num_weavers(num_weavers):
+    """
+    num_weavers < 1 must fail fast: 0 weavers would silently create an
+    unbounded queue (0 * 4 = 0 = no limit) and complete without
+    processing anything.
+    """
+    config = LoomConfig(output_dir=".", batch_size=1, interval_seconds=0)
+    with pytest.raises(ConfigurationError):
+        Loom(
+            config=config,
+            processor=PassthroughProcessor(),
+            sink=InMemorySink(),
+            source=FiniteSource([1]),
+            num_weavers=num_weavers,
+        )
+
+
+def test_loom_start_cannot_be_reused():
+    """
+    A Loom instance is single-use: a second start() must raise instead of
+    spawning Weavers that never receive a stop sentinel (thread leak with
+    the state stuck in RUNNING).
+    """
+
+    class CountingHooks(LoomHooks):
+        def __init__(self):
+            self.start_calls = 0
+
+        def on_start(self):
+            self.start_calls += 1
+
+    hooks = CountingHooks()
+    loom = _make_loom(FiniteSource([1]), hooks=hooks)
+    loom.start()
+    weavers_after_first = len(loom.weavers)
+
+    with pytest.raises(LoomError):
+        loom.start()
+
+    assert len(loom.weavers) == weavers_after_first  # no leaked threads
+    assert loom.state is LoomState.COMPLETED  # not stuck in RUNNING
+    assert hooks.start_calls == 1  # the rejected start never fired hooks
+
+
+def test_loom_start_after_early_stop_raises():
+    """stop() before start() must also make start() unusable (same leak scenario)."""
+    loom = _make_loom(FiniteSource([1]))
+    loom.stop()
+
+    with pytest.raises(LoomError):
+        loom.start()
+
+    assert loom.weavers == []
 
 
 def test_loom_as_context_manager():

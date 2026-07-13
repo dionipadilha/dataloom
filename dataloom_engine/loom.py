@@ -11,6 +11,7 @@ import threading
 from typing import TYPE_CHECKING, Optional
 
 from dataloom_engine.config import LoomConfig
+from dataloom_engine.exceptions import ConfigurationError, LoomError
 from dataloom_engine.hooks import LoomHooks
 from dataloom_engine.processors import Processor
 from dataloom_engine.sinks import Sink
@@ -45,6 +46,9 @@ class Loom:
         hooks: Optional[LoomHooks] = None,
         num_weavers: int = 2,
     ):
+        if num_weavers < 1:
+            raise ConfigurationError(f"num_weavers must be at least 1 (got: {num_weavers}).")
+
         self.config = config
         self.processor = processor
         self.sink = sink
@@ -90,7 +94,18 @@ class Loom:
         """
         Starts the Weavers and begins the task production loop.
         This method blocks until an error occurs or the loom is stopped.
+
+        A Loom instance is single-use: calling start() again after it has
+        run (or after stop()) raises LoomError.
         """
+        # Restarting a stopped instance would spawn Weavers that never
+        # receive a stop sentinel (stop() is idempotent), leaking threads.
+        if self.state is not LoomState.PENDING or self._stopped:
+            raise LoomError(
+                "This Loom has already been started or stopped; "
+                "create a new instance to run another pipeline."
+            )
+
         self.state = LoomState.RUNNING
         self.hooks.on_start()
 

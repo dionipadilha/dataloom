@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dataloom-engine"
-version = "0.4.0"
-description = "DataLoom: Um orquestrador de threads leve e eficiente para dados."
+version = "0.4.1"
+description = "DataLoom: a lightweight and efficient thread orchestration engine for data pipelines."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}

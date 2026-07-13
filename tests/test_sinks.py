@@ -166,6 +166,40 @@ def test_callback_sink_close_without_handler_is_noop():
     sink.close()  # must not raise
 
 
+def test_threaded_sink_send_racing_close_never_drops_silently():
+    """
+    Regression for the send()/close() race: send() used to check _closed
+    outside the close lock, so an item could be enqueued behind the stop
+    sentinel and silently lost — no delivery, no LoomError. Now the
+    check+put is atomic: every send() either delivers or raises.
+    """
+    for _ in range(50):  # repeat to give the race a chance
+        target = MockSink()
+        buffered_sink = ThreadedBufferedSink(target)
+        outcome = {}
+        barrier = threading.Barrier(2)
+
+        def producer(sink=buffered_sink, outcome=outcome, barrier=barrier):
+            barrier.wait()  # line up with close() for maximum contention
+            try:
+                sink.send({"id": 1})
+                outcome["sent"] = True
+            except LoomError:
+                outcome["sent"] = False
+
+        thread = threading.Thread(target=producer)
+        thread.start()
+        barrier.wait()
+        buffered_sink.close()
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+
+        if outcome["sent"]:
+            assert target.results == [{"id": 1}], "accepted item was dropped"
+        else:
+            assert target.results == []
+
+
 def test_threaded_sink_no_data_loss_on_racy_close():
     """
     Regression for the old worker race (stop_event + queue.empty()):

@@ -29,6 +29,12 @@ CORE_MODULES = [
 ]
 
 
+def test_package_exposes_version():
+    """__version__ mirrors the installed distribution metadata."""
+    assert isinstance(dataloom_engine.__version__, str)
+    assert dataloom_engine.__version__
+
+
 def test_core_modules_do_not_import_numpy():
     """
     No core module may import numpy at module level. Lazy imports inside
