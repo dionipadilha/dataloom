@@ -12,7 +12,7 @@ import queue
 import threading
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, TextIO
 
 from dataloom_engine.exceptions import LoomError
 
@@ -42,6 +42,11 @@ class JsonFileSink(Sink):
     """
     Default sink that appends results to a local JSON-lines file.
     Uses a threading.Lock to keep concurrent writes consistent.
+
+    The file is opened lazily on the first send() and kept open until
+    close(), avoiding an open/close syscall pair per result. Every line
+    is flushed, so results are visible to readers immediately. A send()
+    after close() transparently reopens the file in append mode.
     """
 
     def __init__(self, output_dir: Path, filename: str = "results.json"):
@@ -50,12 +55,21 @@ class JsonFileSink(Sink):
         self._path = self.output_dir / filename
         # The lock ensures only one Weaver writes to the file at a time
         self._lock = threading.Lock()
+        self._file: Optional[TextIO] = None
 
     def send(self, result: Dict[str, Any]) -> None:
         with self._lock:
-            with open(self._path, "a") as f:
-                json.dump(result, f)
-                f.write("\n")
+            if self._file is None:
+                self._file = open(self._path, "a")
+            json.dump(result, self._file)
+            self._file.write("\n")
+            self._file.flush()
+
+    def close(self) -> None:
+        with self._lock:
+            if self._file is not None:
+                self._file.close()
+                self._file = None
 
 
 class CsvFileSink(Sink):
@@ -66,6 +80,12 @@ class CsvFileSink(Sink):
     In subsequent results, extra keys are ignored and missing keys are
     left empty. Uses a threading.Lock to keep concurrent writes
     consistent.
+
+    The file is opened lazily on the first send() and kept open until
+    close(), avoiding an open/close syscall pair per row. Every row is
+    flushed, so results are visible to readers immediately. A send()
+    after close() transparently reopens the file in append mode (the
+    header is not repeated).
     """
 
     def __init__(self, output_dir: Path, filename: str = "results.csv"):
@@ -74,6 +94,8 @@ class CsvFileSink(Sink):
         self._path = self.output_dir / filename
         self._lock = threading.Lock()
         self._fieldnames: Optional[list] = None
+        self._file: Optional[TextIO] = None
+        self._writer: Optional[csv.DictWriter] = None
 
     def send(self, result: Dict[str, Any]) -> None:
         with self._lock:
@@ -82,11 +104,22 @@ class CsvFileSink(Sink):
             if fieldnames is None:
                 fieldnames = list(result.keys())
                 self._fieldnames = fieldnames
-            with open(self._path, "a", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-                if write_header:
-                    writer.writeheader()
-                writer.writerow(result)
+            writer = self._writer
+            if self._file is None or writer is None:
+                self._file = open(self._path, "a", newline="")
+                writer = csv.DictWriter(self._file, fieldnames=fieldnames, extrasaction="ignore")
+                self._writer = writer
+            if write_header:
+                writer.writeheader()
+            writer.writerow(result)
+            self._file.flush()
+
+    def close(self) -> None:
+        with self._lock:
+            if self._file is not None:
+                self._file.close()
+                self._file = None
+                self._writer = None
 
 
 class CallbackSink(Sink):
