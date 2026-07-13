@@ -5,6 +5,34 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-07-13
+
+### Added
+
+- `Loom.stop(timeout=...)`: bounds how long shutdown waits for the
+  Weavers. When the deadline passes, still-running Weavers are reported
+  via `hooks.on_error` (as `LoomError`), the sink is closed anyway and
+  `stop()` returns instead of hanging — e.g. when a Processor is stuck
+  on a network call without a timeout. The default (`None`) keeps the
+  previous behavior of waiting indefinitely.
+- CI job (`core-no-deps`) that installs the package without any extras
+  and runs the pure-Python tests in an environment that truly has no
+  numpy. Previously the "zero-dependency core" contract was only
+  simulated by monkeypatching numpy away.
+- The publish workflow fails fast when the GitHub release tag does not
+  match the version in `pyproject.toml`, preventing tag/version
+  mismatches on PyPI.
+
+### Changed
+
+- New `LoomState.STOPPED`: interrupting a pipeline (external `stop()` or
+  `KeyboardInterrupt`) now ends as `STOPPED` instead of pretending
+  `COMPLETED`. `COMPLETED` is reserved for a source exhausted naturally;
+  `FAILED` still marks source errors.
+- `Loom.stop()` no longer blocks forever enqueuing stop sentinels when
+  every Weaver has already died with a full task queue (defensive
+  hardening of an extreme shutdown scenario).
+
 ## [0.4.1] - 2026-07-13
 
 ### Fixed
@@ -122,6 +150,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   `JsonFileSink`, `ThreadedBufferedSink`, lifecycle hooks (`LoomHooks`),
   logging (`LoomLogs`) and typed exceptions (`LoomError`).
 
+[0.5.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.5.0
 [0.4.1]: https://github.com/dionipadilha/dataloom/releases/tag/v0.4.1
 [0.4.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.4.0
 [0.3.0]: https://github.com/dionipadilha/dataloom/releases/tag/v0.3.0

@@ -6,8 +6,10 @@ Defines the main class responsible for managing the lifecycle of the
 worker threads (Weavers) and the distribution of tasks.
 """
 
+import logging
 import queue
 import threading
+import time
 from typing import TYPE_CHECKING, Optional
 
 from dataloom_engine.config import LoomConfig
@@ -20,6 +22,8 @@ from dataloom_engine.weaver import STOP_SENTINEL, Weaver
 
 if TYPE_CHECKING:
     from dataloom_engine.sources import Source
+
+logger = logging.getLogger(__name__)
 
 
 class Loom:
@@ -80,6 +84,8 @@ class Loom:
         self.weavers: list[Weaver] = []
         self._stop_lock = threading.Lock()
         self._stopped = False
+        # Distinguishes COMPLETED (source exhausted) from STOPPED (interrupted)
+        self._source_exhausted = False
 
     def __enter__(self) -> "Loom":
         return self
@@ -127,6 +133,11 @@ class Loom:
                 if self.stop_event.is_set():
                     break
                 self._enqueue(batch)
+            else:
+                # The for/else only runs when the loop ended without a
+                # break: the source was exhausted naturally, so stop()
+                # may report COMPLETED instead of STOPPED.
+                self._source_exhausted = True
         except Exception as e:
             self.state = LoomState.FAILED
             self.hooks.on_error(e)
@@ -146,13 +157,21 @@ class Loom:
             except queue.Full:
                 continue
 
-    def stop(self) -> None:
+    def stop(self, timeout: Optional[float] = None) -> None:
         """
         Signals every component to stop and waits for cleanup.
         Safe to call multiple times or from finally blocks.
 
         Items already queued are processed before shutdown: each Weaver
         drains the queue until it finds its stop sentinel.
+
+        Args:
+            timeout: Maximum time in seconds to wait for the Weavers to
+                finish. None (default) waits indefinitely. When the
+                deadline passes, still-running Weavers are reported via
+                hooks.on_error (as LoomError), the sink is closed anyway
+                and stop() returns; the leftover daemon threads do not
+                block process exit.
         """
         with self._stop_lock:
             if self._stopped:
@@ -161,17 +180,42 @@ class Loom:
 
         self.stop_event.set()
 
+        deadline = None if timeout is None else time.monotonic() + timeout
+
         # One sentinel per Weaver: each thread drains the queue and exits
         # upon consuming its own. This replaces the queue join(), which
         # could block forever if a Weaver died before emptying it.
         for _ in self.weavers:
-            self.task_queue.put(STOP_SENTINEL)
-        for weaver in self.weavers:
-            weaver.join()
+            if not self._put_sentinel(deadline):
+                break
 
-        # Never overwrite a FAILED state set by start() on error
+        stuck = []
+        for weaver in self.weavers:
+            if deadline is None:
+                weaver.join()
+            else:
+                weaver.join(timeout=max(deadline - time.monotonic(), 0))
+            if weaver.is_alive():
+                stuck.append(weaver)
+
+        if stuck:
+            logger.warning(
+                "%d weaver(s) still running after the stop timeout; they are "
+                "daemon threads and will not block process exit.",
+                len(stuck),
+            )
+            try:
+                self.hooks.on_error(
+                    LoomError(f"{len(stuck)} weaver(s) did not finish within the stop timeout.")
+                )
+            except Exception:
+                logger.exception("The on_error callback raised an exception.")
+
+        # Natural exhaustion of the source becomes COMPLETED; an external
+        # stop or interruption becomes STOPPED. A FAILED state set by
+        # start() on a source error is never overwritten.
         if self.state is LoomState.RUNNING:
-            self.state = LoomState.COMPLETED
+            self.state = LoomState.COMPLETED if self._source_exhausted else LoomState.STOPPED
 
         try:
             self.sink.close()
@@ -180,3 +224,23 @@ class Loom:
             self.hooks.on_error(e)
 
         self.hooks.on_stop()
+
+    def _put_sentinel(self, deadline: Optional[float]) -> bool:
+        """
+        Enqueues one stop sentinel, giving up when the deadline passes or
+        when no Weaver is alive to drain a full queue — a plain blocking
+        put() would hang stop() forever in that scenario.
+        """
+        while True:
+            if deadline is None:
+                wait = 0.1
+            else:
+                wait = min(0.1, max(deadline - time.monotonic(), 0.0))
+            try:
+                self.task_queue.put(STOP_SENTINEL, timeout=wait)
+                return True
+            except queue.Full:
+                if deadline is not None and time.monotonic() >= deadline:
+                    return False
+                if not any(weaver.is_alive() for weaver in self.weavers):
+                    return False
